@@ -1,0 +1,34 @@
+{
+  "tools": [
+    {
+      "name": "topRatedMovies",
+      "description": "Returns the highest-rated movies, best first.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "urn:gatool:schema:sha256:f84a592c7199341ea91053b385f9a87f4ffb9d92f4264c48ab0d08f6d71e9bc5",
+        "type": "object",
+        "properties": {
+          "first": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "How many movies to return.",
+            "default": 10
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    }
+  ]
+}

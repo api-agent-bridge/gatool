@@ -1,0 +1,4 @@
+# Greets someone by name.
+query Greeting($name: String!) {
+  greeting(name: $name)
+}

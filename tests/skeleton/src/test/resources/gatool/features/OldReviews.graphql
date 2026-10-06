@@ -1,0 +1,6 @@
+# Returns reviews through the argument the API asks callers to stop using.
+query OldReviews($limit: Int) {
+  reviews(limit: $limit) {
+    id
+  }
+}

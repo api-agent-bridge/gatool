@@ -1,0 +1,8 @@
+# Returns the highest-rated movies, best first, for callers who may read movies,
+# with the scope written the way Microsoft Entra ID qualifies it.
+query TopRatedMovies($first: Int = 3) @gatool(scopes: ["api://6e74172b/movies.read"]) {
+  topRatedMovies(first: $first) {
+    id
+    title
+  }
+}

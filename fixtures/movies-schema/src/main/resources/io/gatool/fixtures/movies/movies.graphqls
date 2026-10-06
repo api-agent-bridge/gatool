@@ -1,0 +1,152 @@
+"""
+An instant with a UTC offset, such as 2026-09-15T18:30:00Z.
+"""
+scalar DateTime @specifiedBy(url: "https://scalars.graphql.org/andimarek/date-time")
+
+"""
+A two-letter ISO 3166-1 country code, such as SI.
+"""
+scalar CountryCode
+
+type Query {
+  "Returns the highest-rated movies, best first."
+  topRatedMovies(
+    "How many movies to return."
+    first: Int = 10
+  ): [Movie!]!
+
+  "Looks up one movie by its id or by its exact title. Returns null unless a movie matches."
+  movie(by: MovieLookupInput!): Movie
+
+  "Pages through the movies that match a filter, ordered by title."
+  movies(filter: MovieFilterInput, first: Int, after: String): MovieConnection!
+
+  "Finds the movies whose title, and the people whose name, contain the text."
+  search(text: String!): [SearchResult!]!
+
+  "Fetches any object that has a global id."
+  node(id: ID!): Node
+
+  "Returns every movie in the catalog."
+  allMovies: [Movie!]! @deprecated(reason: "Unbounded. Use movies, which pages its results.")
+
+  "Returns reviews, newest first, narrowed by when they were written and by whom."
+  reviews(
+    "Only reviews written at or after this instant."
+    since: DateTime
+    "Only reviews of movies with a director from this country."
+    country: CountryCode
+    filter: ReviewFilterInput
+    "How many reviews to return."
+    first: Int = 20
+    limit: Int @deprecated(reason: "Use first.")
+  ): [Review!]!
+}
+
+type Mutation {
+  "Adds a review to a movie and returns the stored review."
+  addReview(input: AddReviewInput!): AddReviewResponse!
+}
+
+type Subscription {
+  "Sends every review that someone adds to the movie."
+  reviewAdded(movieId: ID!): Review!
+}
+
+"An object with a global id."
+interface Node {
+  id: ID!
+}
+
+"A movie in the catalog."
+type Movie implements Node {
+  id: ID!
+  title: String!
+  releaseYear: Int!
+  genre: Genre!
+  "The catalog's average rating, from 0.0 to 10.0. Null when the catalog has not rated the movie."
+  rating: Float
+  """
+  A live rating from an external rating service. When that service is unavailable, the
+  field is null and the response carries an error, which makes the response a partial result.
+  """
+  communityRating: Float
+  directors: [Person!]!
+  reviews: [Review!]!
+}
+
+"A person who directed a movie."
+type Person implements Node {
+  id: ID!
+  name: String!
+  countryCode: CountryCode
+}
+
+"A review of a movie."
+type Review implements Node {
+  id: ID!
+  "Score from 1 to 10."
+  score: Int!
+  comment: String
+  createdAt: DateTime!
+}
+
+"A movie or a person."
+union SearchResult = Movie | Person
+
+enum Genre {
+  ACTION
+  COMEDY
+  DRAMA
+  SCIFI
+}
+
+"Identifies one movie. Give exactly one of the fields."
+input MovieLookupInput @oneOf {
+  id: ID
+  title: String
+}
+
+"Narrows the movies that a query returns."
+input MovieFilterInput {
+  genre: Genre
+  minRating: Float
+}
+
+"Narrows the reviews that a query returns."
+input ReviewFilterInput {
+  "Lowest score to include."
+  minScore: Int = 1
+  "Only reviews of movies in these genres."
+  genres: [Genre!]
+}
+
+"The review to add."
+input AddReviewInput {
+  movieId: ID!
+  "Score from 1 to 10."
+  score: Int!
+  comment: String
+}
+
+"The result of adding a review."
+type AddReviewResponse {
+  review: Review!
+}
+
+type MovieConnection {
+  edges: [MovieEdge!]!
+  pageInfo: PageInfo!
+}
+
+type MovieEdge {
+  cursor: String!
+  node: Movie!
+}
+
+type PageInfo {
+  hasPreviousPage: Boolean!
+  hasNextPage: Boolean!
+  startCursor: String
+  endCursor: String
+}

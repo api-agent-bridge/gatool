@@ -1,0 +1,7 @@
+# Looks up one movie by its id or by its exact title, for callers who may read the detail of a movie.
+query MovieByLookup($by: MovieLookupInput!) @gatool(scopes: ["movies:read", "movies:detail"]) {
+  movie(by: $by) {
+    id
+    title
+  }
+}

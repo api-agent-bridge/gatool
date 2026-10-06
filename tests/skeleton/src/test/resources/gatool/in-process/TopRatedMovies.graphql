@@ -1,0 +1,7 @@
+query TopRatedMovies($first: Int = 10) {
+  topRatedMovies(first: $first) {
+    id
+    title
+    rating
+  }
+}

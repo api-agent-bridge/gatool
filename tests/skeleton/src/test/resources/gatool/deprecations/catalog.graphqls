@@ -1,0 +1,51 @@
+# A schema that deprecates one of everything GraphQL lets a schema deprecate: a
+# field, an argument, an enum value and an input field. The deprecation tests read
+# it, because the movie schema deprecates a root field and an argument alone.
+#
+# Folder.parent points back at Folder, so a document can nest as deeply as a test
+# needs, which the limit tests use. Archive is reached through a deprecated field
+# alone, and Orphan stays out of reach of every root.
+
+"How folders are ordered."
+enum SortOrder {
+  NAME
+  CREATED
+  SIZE @deprecated(reason: "Use CREATED.")
+}
+
+"Narrows the folders a query returns."
+input FolderFilterInput {
+  name: String
+  owner: String @deprecated(reason: "Use name.")
+}
+
+"A folder, which may sit inside another."
+type Folder {
+  name: String!
+  parent: Folder
+  "The number of files."
+  size: Int! @deprecated(reason: "Use fileCount.")
+  fileCount: Int!
+  archive: Archive @deprecated(reason: "Archives are gone.")
+}
+
+"An archived copy of a folder, reached through a deprecated field alone."
+type Archive {
+  id: ID!
+}
+
+"A type that stays out of reach of every query and mutation."
+type Orphan {
+  id: ID!
+}
+
+type Query {
+  "Looks up one folder by name."
+  folder(name: String!, order: SortOrder = NAME, limit: Int @deprecated(reason: "Use first."), first: Int): Folder
+  "Lists the folders a filter matches."
+  folders(filter: FolderFilterInput): [Folder!]!
+}
+
+type Subscription {
+  folderChanged: Folder!
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The Logback file of an application that configures its log itself, which the
+     stdio log test names through logging.config. -->
+<configuration>
+    <appender name="OWN" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>own %level %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="WARN">
+        <appender-ref ref="OWN"/>
+    </root>
+</configuration>

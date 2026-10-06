@@ -1,0 +1,17 @@
+# Fetches any object by its global id, with the reviews of a movie.
+query NodeById($id: ID!) {
+  node(id: $id) {
+    __typename
+    id
+    ... on Movie {
+      title
+      reviews {
+        score
+        createdAt
+      }
+    }
+    ... on Person {
+      name
+    }
+  }
+}

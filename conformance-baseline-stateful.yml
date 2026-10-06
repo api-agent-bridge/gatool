@@ -1,0 +1,36 @@
+# Scenarios that the MCP conformance suite reports as failures for this release
+# when the fixture serves stateful Streamable HTTP, with a session per client.
+#
+# Every line comes from an observed run, because the suite treats a listed
+# scenario that passes as a stale entry and fails the run. Measured
+# against @modelcontextprotocol/conformance@0.2.0-alpha.11 with
+# --requirements 2025-11-25 and the fixture started with
+# --spring.ai.mcp.server.protocol=STREAMABLE. Two failures the suite reports,
+# json-schema-2020-12 and server-sse-polling, are pending and unscored, so they
+# stay out of this list.
+#
+# The session lets the server reach the client, so the scenarios the stateless
+# run leaves out for that reason pass here: logging-set-level,
+# tools-call-with-logging, tools-call-with-progress, server-sse-multiple-streams,
+# tools-call-sampling, tools-call-elicitation and the two elicitation schema
+# scenarios, and the suite's own server-session-lifecycle passes with them.
+server:
+  # This server serves tools. GATool turns GraphQL operation files into tools, and
+  # an application declares its own resources, prompts and completions when it
+  # wants them, so the fixture declares tools alone. Those three capabilities
+  # stay out of the initialize answer, so the server answers resources/list and
+  # prompts/list with -32601, which is what the suite's own check that
+  # capabilities match handlers requires of a server that does not declare the
+  # capability. Each scenario here asks for a resource, a prompt or a completion.
+  - completion-complete
+  - resources-list
+  - resources-read-text
+  - resources-read-binary
+  - resources-templates-read
+  - resources-subscribe
+  - resources-unsubscribe
+  - prompts-list
+  - prompts-get-simple
+  - prompts-get-with-args
+  - prompts-get-embedded-resource
+  - prompts-get-with-image

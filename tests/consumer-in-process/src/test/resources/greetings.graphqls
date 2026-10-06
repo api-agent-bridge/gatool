@@ -1,0 +1,7 @@
+type Query {
+  "Greets someone by name."
+  greeting(
+    "Who to greet."
+    name: String!
+  ): String!
+}

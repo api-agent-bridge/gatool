@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>gatool-coverage</artifactId>
+    <name>gatool-coverage</name>
+    <packaging>pom</packaging>
+    <description>One coverage report over the published modules, counting the tests of every module that exercises them</description>
+
+    <properties>
+        <!-- Read by maven-deploy-plugin alone; the Central plugin reads excludeArtifacts in the root POM. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- Sonar measures the published modules alone, and this one stays out of Maven
+             Central. Its coverage of them still counts, because the scanner reads the
+             aggregate report the root POM names. -->
+        <sonar.skip>true</sonar.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <maven.source.skip>true</maven.source.skip>
+    </properties>
+
+    <!-- Only the published code modules, because coverage of a fixture or of a test
+         module measures that module, where this report measures the library.
+         report-aggregate reads the exec data of every module in the reactor, so a
+         class of gatool-mcp-spring-boot covered by tests/skeleton is counted here, once. -->
+    <dependencies>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-mcp-spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-in-process-spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-spring-boot-test</artifactId>
+        </dependency>
+        <!-- Test scope contributes execution data and keeps its own classes out of the
+             report, which is what these three are here for: they hold the context and
+             end-to-end tests, so without them the three auto-configuration modules read
+             as almost uncovered when they are exercised on every one of their runs. -->
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-tests-skeleton</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-tests-consumer-mcp</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-tests-consumer-in-process</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- The floor. jacoco:check reads one execution data file and the classes in
+                 the output directory of the module it runs in, and report-aggregate is the
+                 plugin's only goal that spans modules, so the check runs over a copy of
+                 what the aggregate report reads: the classes of the four modules the floor
+                 covers, unpacked into this module's target/classes at prepare-package,
+                 and the exec files of the eight modules that contribute execution data,
+                 merged into one at verify. gatool-spring-boot-test stays in the report and
+                 out of the floor, which guards the code an application runs. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-covered-classes</id>
+                        <phase>prepare-package</phase>
+                        <goals>
+                            <goal>unpack-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <includeArtifactIds>gatool-core,gatool-spring-boot,gatool-mcp-spring-boot,gatool-in-process-spring-boot</includeArtifactIds>
+                            <includes>**/*.class</includes>
+                            <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- unpack-dependencies creates the directory for each artifact it unpacks,
+                 and jacoco:check skips a module whose classes directory is missing and
+                 passes a ratio it cannot compute over an empty one, so the floor would
+                 pass over an empty measurement whenever the filter above misses a module.
+                 This rule stops the build then, one package root per covered module. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>require-covered-classes</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireFilesExist>
+                                    <files>
+                                        <file>${project.build.outputDirectory}/io/gatool/core</file>
+                                        <file>${project.build.outputDirectory}/io/gatool/boot/autoconfigure</file>
+                                        <file>${project.build.outputDirectory}/io/gatool/boot/mcp</file>
+                                        <file>${project.build.outputDirectory}/io/gatool/boot/inprocess</file>
+                                    </files>
+                                    <message>The coverage floor is missing the classes of at least one of the four modules it covers. Check includeArtifactIds in the unpack-covered-classes execution against the module artifactIds.</message>
+                                </requireFilesExist>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>aggregate</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report-aggregate</goal>
+                        </goals>
+                        <configuration>
+                            <title>GATool</title>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>merge-execution-data</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>merge</goal>
+                        </goals>
+                        <configuration>
+                            <fileSets>
+                                <fileSet>
+                                    <directory>${maven.multiModuleProjectDirectory}</directory>
+                                    <includes>
+                                        <include>gatool-core/target/jacoco.exec</include>
+                                        <include>gatool-spring-boot/target/jacoco.exec</include>
+                                        <include>gatool-mcp-spring-boot/target/jacoco.exec</include>
+                                        <include>gatool-in-process-spring-boot/target/jacoco.exec</include>
+                                        <include>gatool-spring-boot-test/target/jacoco.exec</include>
+                                        <include>tests/skeleton/target/jacoco.exec</include>
+                                        <include>tests/consumer-in-process/target/jacoco.exec</include>
+                                        <include>tests/consumer-mcp/target/jacoco.exec</include>
+                                    </includes>
+                                </fileSet>
+                            </fileSets>
+                            <destFile>${project.build.directory}/jacoco-aggregate.exec</destFile>
+                        </configuration>
+                    </execution>
+                    <!-- 90% of lines and 80% of branches over these four modules. A
+                         build without execution data, such as one run with -DskipTests,
+                         skips the check. -->
+                    <execution>
+                        <id>coverage-floor</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <dataFile>${project.build.directory}/jacoco-aggregate.exec</dataFile>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.90</minimum>
+                                        </limit>
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>0.80</minimum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

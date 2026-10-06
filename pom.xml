@@ -1,0 +1,737 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The attribute keeps every module's url at the repository's own: Maven otherwise
+     appends the module's directory to the parent's url when a module inherits it,
+     and https://github.com/api-agent-bridge/gatool/gatool-core answers 404. The scm block
+     below carries the same attribute for its three addresses. -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd"
+         child.project.url.inherit.append.path="false">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.gatool</groupId>
+    <artifactId>gatool-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>GATool</name>
+    <description>Spring Boot starters that turn GraphQL operation files into MCP tools and in-process tools for Spring AI</description>
+    <url>https://github.com/api-agent-bridge/gatool</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+        </license>
+    </licenses>
+
+    <!-- Maven Central requires a developer entry on every published artifact. -->
+    <developers>
+        <developer>
+            <id>zkozina</id>
+            <name>zkozina</name>
+            <url>https://github.com/zkozina</url>
+        </developer>
+    </developers>
+
+    <scm child.scm.connection.inherit.append.path="false"
+         child.scm.developerConnection.inherit.append.path="false"
+         child.scm.url.inherit.append.path="false">
+        <url>https://github.com/api-agent-bridge/gatool</url>
+        <connection>scm:git:https://github.com/api-agent-bridge/gatool.git</connection>
+        <developerConnection>scm:git:git@github.com:api-agent-bridge/gatool.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+
+    <modules>
+        <module>gatool-core</module>
+        <module>gatool-spring-boot</module>
+        <module>gatool-mcp-spring-boot</module>
+        <module>gatool-in-process-spring-boot</module>
+        <module>gatool-mcp-spring-boot-starter</module>
+        <module>gatool-in-process-spring-boot-starter</module>
+        <module>gatool-spring-boot-test</module>
+        <module>gatool-spring-boot-starter-test</module>
+        <module>fixtures/movies-schema</module>
+        <module>fixtures/movies-api</module>
+        <module>fixtures/conformance-app</module>
+        <module>tests/skeleton</module>
+        <module>tests/consumer-in-process</module>
+        <module>tests/consumer-mcp</module>
+        <module>coverage</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <!-- Every jar entry and the SBOM take their timestamp from this value, so two
+             builds of one commit give the same bytes and a published jar can be
+             checked against a rebuild. RELEASING.md updates it at each release. -->
+        <project.build.outputTimestamp>2026-09-24T00:00:00Z</project.build.outputTimestamp>
+
+        <spring-boot.version>4.1.1</spring-boot.version>
+        <spring-ai.version>2.0.1</spring-ai.version>
+        <!-- Spring Boot 4.1.1 manages Tomcat 11.0.24, which three advisories affect:
+             GHSA-9xv2-5v5q-p794 in the DIGEST authenticator, GHSA-h3x4-894j-xpx5 in the
+             FORM authenticator, and GHSA-gcx9-497g-6cp6 in access control. Tomcat fixed
+             all three in 11.0.25. Spring Boot publishes this property so that a build
+             can move inside a patch line before the next Boot release lands, so this
+             override goes away once a Boot release manages 11.0.25 or later. -->
+        <tomcat.version>11.0.26</tomcat.version>
+        <error-prone.version>2.50.0</error-prone.version>
+        <!-- The Checkstyle and spring-javaformat versions Spring Boot's own build uses. -->
+        <checkstyle.version>10.12.4</checkstyle.version>
+        <spring-javaformat.version>0.0.48</spring-javaformat.version>
+        <nullaway.version>0.14.1</nullaway.version>
+        <graphql-java-extended-scalars.version>24.0</graphql-java-extended-scalars.version>
+        <bucket4j.version>8.19.0</bucket4j.version>
+        <lucene.version>10.3.2</lucene.version>
+        <jacoco.version>0.8.14</jacoco.version>
+        <!-- Sonar reads one file: the aggregate, which is the only report that counts
+             tests/skeleton's coverage of the three auto-configuration modules. -->
+        <sonar.coverage.jacoco.xmlReportPaths>${maven.multiModuleProjectDirectory}/coverage/target/site/jacoco-aggregate/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <!-- Findings this project waives, each with the reason beside it. They live
+             here so that the reason is reviewable and a fresh Sonar instance starts
+             clean, which marking each issue in the web interface leaves to whoever set
+             that instance up. Every entry below names one rule and the one file it is
+             waived in, so a new file gets the rule in full. -->
+        <sonar.issue.ignore.multicriteria>graphqlTester,toolCallBoundary,markerBean,starterDocs,namedRefusals,guardClauses,autoConfigurationLoggers</sonar.issue.ignore.multicriteria>
+        <!-- S2699, assertions missing. MoviesApiTests asserts through Spring's
+             HttpGraphQlTester, whose .entity(..).isEqualTo(..) and .entityList(..)
+             .containsExactly(..) throw on a mismatch. Sonar recognises a fixed set of
+             assertion libraries and GraphQlTester is outside it, so it reads eight tests
+             that do assert as eight that do not. -->
+        <sonar.issue.ignore.multicriteria.graphqlTester.ruleKey>java:S2699</sonar.issue.ignore.multicriteria.graphqlTester.ruleKey>
+        <sonar.issue.ignore.multicriteria.graphqlTester.resourceKey>**/MoviesApiTests.java</sonar.issue.ignore.multicriteria.graphqlTester.resourceKey>
+        <!-- S1181, catching Throwable. Every ending of an MCP tool call has to be a
+             CallToolResult. An Error is not a RuntimeException, so catching Exception
+             lets it reach the servlet, and the client then reads Spring Boot's own 500
+             body, without a jsonrpc member, an id or an error object, which breaks the
+             protocol where a tool error was meant. The class, in
+             io.gatool.boot.mcp.internal.server, says so at both catches. -->
+        <sonar.issue.ignore.multicriteria.toolCallBoundary.ruleKey>java:S1181</sonar.issue.ignore.multicriteria.toolCallBoundary.ruleKey>
+        <sonar.issue.ignore.multicriteria.toolCallBoundary.resourceKey>**/McpToolSpecifications.java</sonar.issue.ignore.multicriteria.toolCallBoundary.resourceKey>
+        <!-- S2094, empty class. Two marker beans exist for their type or their creation
+             alone: GAToolServerCapabilitiesMarker in GAToolMcpAutoConfiguration, which a
+             BeanFactoryPostProcessor adds to the dependsOn of every Spring AI server bean
+             so the capabilities are settled first, and ResourceServerSettingsCheck in
+             GAToolMcpSecurityAutoConfiguration, whose bean method runs the resource server
+             settings check. Spring instantiates both, so the interface the rule asks for
+             cannot serve. -->
+        <sonar.issue.ignore.multicriteria.markerBean.ruleKey>java:S2094</sonar.issue.ignore.multicriteria.markerBean.ruleKey>
+        <sonar.issue.ignore.multicriteria.markerBean.resourceKey>**/GAToolMcp*AutoConfiguration.java</sonar.issue.ignore.multicriteria.markerBean.resourceKey>
+        <!-- S4032, a package holding only package-info.java. A starter carries
+             dependencies alone, which is Spring Boot's own convention, and the
+             package-info is where a developer browsing the javadoc reads what the starter
+             pulls in and where the auto-configuration lives. Each starter documents
+             itself in a package ending in .starter, so the pattern covers all three. -->
+        <sonar.issue.ignore.multicriteria.starterDocs.ruleKey>java:S4032</sonar.issue.ignore.multicriteria.starterDocs.ruleKey>
+        <sonar.issue.ignore.multicriteria.starterDocs.resourceKey>**/io/gatool/boot/*/starter/package-info.java</sonar.issue.ignore.multicriteria.starterDocs.resourceKey>
+        <!-- S5976, similar tests should be parameterized. Each of these tests names the
+             GraphQL feature it refuses, so a failing build says which one broke, and one
+             of them carries four lines explaining why @defer is refused. A data table
+             replaces those names with row numbers, and a row cannot carry the
+             explanation. -->
+        <sonar.issue.ignore.multicriteria.namedRefusals.ruleKey>java:S5976</sonar.issue.ignore.multicriteria.namedRefusals.ruleKey>
+        <sonar.issue.ignore.multicriteria.namedRefusals.resourceKey>**/*Tests.java</sonar.issue.ignore.multicriteria.namedRefusals.resourceKey>
+        <!-- S135, one break or continue per loop. Both loops use continue as a guard
+             clause, once per reason a file is skipped, each with the reason above it.
+             Reaching one exit wants either nesting or a flag, and both read worse. -->
+        <sonar.issue.ignore.multicriteria.guardClauses.ruleKey>java:S135</sonar.issue.ignore.multicriteria.guardClauses.ruleKey>
+        <sonar.issue.ignore.multicriteria.guardClauses.resourceKey>**/src/main/java/io/gatool/core/internal/operation/*.java</sonar.issue.ignore.multicriteria.guardClauses.resourceKey>
+        <!-- S3416, a logger named for another class. The helper classes of each
+             auto-configuration log under the auto-configuration's own name, so an
+             operator's logging configuration keys on one logger per starter. Spring
+             Boot's DynamicRegistrationBean logs as RegistrationBean for the same
+             reason. -->
+        <sonar.issue.ignore.multicriteria.autoConfigurationLoggers.ruleKey>java:S3416</sonar.issue.ignore.multicriteria.autoConfigurationLoggers.ruleKey>
+        <sonar.issue.ignore.multicriteria.autoConfigurationLoggers.resourceKey>**/autoconfigure/*.java</sonar.issue.ignore.multicriteria.autoConfigurationLoggers.resourceKey>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Maven applies this POM's own managed versions ahead of anything an import
+                 brings, whatever the order, so these three entries replace the Tomcat
+                 version that spring-boot-dependencies manages. Each artifact is named
+                 here because a project that imports that POM cannot change Boot's
+                 tomcat.version property: Maven resolves an imported POM's properties
+                 against that POM. Every entry goes away once a Boot release manages
+                 11.0.25 or later. -->
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-core</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-el</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat.embed</groupId>
+                <artifactId>tomcat-embed-websocket</artifactId>
+                <version>${tomcat.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!-- spring-boot-dependencies-4.1.1.pom holds zero Spring AI artifacts, so this
+                 project owns the version and watches its upgrades. The import sits below
+                 Boot's, so Boot keeps the versions both of them name, and the MCP Java SDK
+                 2.0.0 arrives through spring-ai-mcp without a version in any POM. -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-spring-boot</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-mcp-spring-boot</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-in-process-spring-boot</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-mcp-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-in-process-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-spring-boot-test</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-spring-boot-starter-test</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-fixtures-movies-schema</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.gatool</groupId>
+                <artifactId>gatool-fixtures-movies-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.graphql-java</groupId>
+                <artifactId>graphql-java-extended-scalars</artifactId>
+                <version>${graphql-java-extended-scalars.version}</version>
+            </dependency>
+            <!-- Rate limiting libraries sit outside what Spring Boot 4.1.1 manages, so
+                 this project owns the version and watches its upgrades, as it does for
+                 Spring AI above. Bucket4j publishes the wait through its ConsumptionProbe,
+                 which the refusal message quotes. -->
+            <dependency>
+                <groupId>com.bucket4j</groupId>
+                <artifactId>bucket4j_jdk17-core</artifactId>
+                <version>${bucket4j.version}</version>
+            </dependency>
+            <!-- The search index of the dynamic layer. Lucene's default similarity is
+                 BM25. lucene-core holds the index and the searcher, and stands without
+                 dependencies of its own. lucene-analysis-common holds the filters that
+                 split an identifier into words and stem them, which is what lets a
+                 question in plain words find a field named topRatedMovies. The query
+                 parser sits in a third artifact this project leaves out: a question
+                 arrives as words, so the analyzer turns it into terms directly. -->
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-core</artifactId>
+                <version>${lucene.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.lucene</groupId>
+                <artifactId>lucene-analysis-common</artifactId>
+                <version>${lucene.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <!-- Every jar carries the licence at META-INF/LICENSE, as Spring Boot's jars do,
+             so a jar found on a classpath says what it is published under. Declaring
+             resources replaces Maven's default entry, so the first one puts it back. The
+             unpublished modules get the file too, which is harmless. -->
+        <resources>
+            <resource>
+                <directory>${project.basedir}/src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${maven.multiModuleProjectDirectory}</directory>
+                <includes>
+                    <include>LICENSE</include>
+                </includes>
+                <targetPath>META-INF</targetPath>
+            </resource>
+        </resources>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-clean-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.15.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.5.6</version>
+                </plugin>
+                <!-- Implementation-Title and Implementation-Version come from each module's
+                     name and version, so a jar on a classpath says which module and which
+                     release it is: Package.getImplementationTitle() reads the pair, and so
+                     does a person opening the manifest. Each module adds its own
+                     Automatic-Module-Name beside them. -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.5.1</version>
+                    <configuration>
+                        <archive>
+                            <manifest>
+                                <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            </manifest>
+                        </archive>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-install-plugin</artifactId>
+                    <version>3.1.4</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>3.1.4</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.6.3</version>
+                </plugin>
+                <!-- Spring's formatter, the one Spring Boot formats its own code with. The
+                     validate goal fails the build on a file the formatter would change;
+                     ./mvnw spring-javaformat:apply rewrites it. -->
+                <plugin>
+                    <groupId>io.spring.javaformat</groupId>
+                    <artifactId>spring-javaformat-maven-plugin</artifactId>
+                    <version>${spring-javaformat.version}</version>
+                </plugin>
+                <!-- Spring's Checkstyle rules (SpringChecks, the set Spring Boot applies to
+                     itself) plus the size limits of src/checkstyle/checkstyle.xml, on main
+                     and test code, with the suppressions Spring Boot grants its own tests. -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-checkstyle-plugin</artifactId>
+                    <version>3.6.0</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>com.puppycrawl.tools</groupId>
+                            <artifactId>checkstyle</artifactId>
+                            <version>${checkstyle.version}</version>
+                        </dependency>
+                        <dependency>
+                            <groupId>io.spring.javaformat</groupId>
+                            <artifactId>spring-javaformat-checkstyle</artifactId>
+                            <version>${spring-javaformat.version}</version>
+                        </dependency>
+                    </dependencies>
+                    <configuration>
+                        <configLocation>${maven.multiModuleProjectDirectory}/src/checkstyle/checkstyle.xml</configLocation>
+                        <propertyExpansion>config_loc=${maven.multiModuleProjectDirectory}/src/checkstyle</propertyExpansion>
+                        <includeTestSourceDirectory>true</includeTestSourceDirectory>
+                        <consoleOutput>true</consoleOutput>
+                        <failsOnError>true</failsOnError>
+                        <violationSeverity>error</violationSeverity>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.12.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>3.2.8</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.cyclonedx</groupId>
+                    <artifactId>cyclonedx-maven-plugin</artifactId>
+                    <version>2.9.3</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>0.11.0</version>
+                </plugin>
+                <!-- RELEASING.md runs versions:set from the command line, and Maven
+                     resolves an unpinned command-line plugin to its newest release, so
+                     the version is pinned here to keep that step the same on every
+                     machine. -->
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>versions-maven-plugin</artifactId>
+                    <version>2.22.0</version>
+                </plugin>
+                <!-- The coverage module unpacks the classes of the four modules its floor
+                     covers, so the version is pinned here like every other plugin's. -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-dependency-plugin</artifactId>
+                    <version>3.10.0</version>
+                </plugin>
+                <!-- The comparison starts at the first patch release of a line, because a
+                     first release cannot compare against an earlier one. The version and
+                     the rules live here so that turning the check on later is one
+                     execution block. -->
+                <plugin>
+                    <groupId>com.github.siom79.japicmp</groupId>
+                    <artifactId>japicmp-maven-plugin</artifactId>
+                    <version>0.26.2</version>
+                    <configuration>
+                        <parameter>
+                            <onlyModified>true</onlyModified>
+                            <breakBuildOnBinaryIncompatibleModifications>true</breakBuildOnBinaryIncompatibleModifications>
+                            <breakBuildOnSourceIncompatibleModifications>true</breakBuildOnSourceIncompatibleModifications>
+                            <!-- One entry per internal root. japicmp's package filter
+                                 matches the package it names and every package below
+                                 it, so each root is one entry. -->
+                            <excludes>
+                                <exclude>io.gatool.core.internal</exclude>
+                                <exclude>io.gatool.boot.internal</exclude>
+                                <exclude>io.gatool.boot.mcp.internal</exclude>
+                                <exclude>io.gatool.boot.inprocess.internal</exclude>
+                            </excludes>
+                        </parameter>
+                    </configuration>
+                </plugin>
+                <!-- Coverage. The agent runs in every module that has tests, and the
+                     per-module report is written for a developer reading one module. The
+                     number that means something is the aggregate in coverage/, because
+                     the integration coverage of the three auto-configuration modules
+                     comes from tests/skeleton, which is a different module: read on its
+                     own, each of them looks far less covered than it is. The coverage
+                     module checks that aggregate against a floor of 90% of lines and 80%
+                     of branches over gatool-core and the three auto-configuration modules,
+                     so the build fails below it. -->
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>${jacoco.version}</version>
+                </plugin>
+                <!-- Sonar reads the aggregate report through the property below. The
+                     server is a local container, and CONTRIBUTING.md carries the two
+                     commands. -->
+                <plugin>
+                    <groupId>org.sonarsource.scanner.maven</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>5.1.0.4751</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.spring.javaformat</groupId>
+                <artifactId>spring-javaformat-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>validate-format</id>
+                        <phase>validate</phase>
+                        <inherited>true</inherited>
+                        <goals>
+                            <goal>validate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>check-style</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-build-environment</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[21,)</version>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9.0,)</version>
+                                </requireMavenVersion>
+                                <banDuplicatePomDependencyVersions/>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <parameters>true</parameters>
+                    <compilerArgs>
+                        <arg>-Xlint:all,-processing</arg>
+                        <arg>-Werror</arg>
+                        <arg>-XDcompilePolicy=simple</arg>
+                        <arg>--should-stop=ifError=FLOW</arg>
+                        <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+                        <!-- UnnecessarilyFullyQualified is a suggestion in Error Prone and off
+                             by default. It is an error here, so a class name written in full
+                             where an import would do fails the build. A name stays in full
+                             only where two classes of one simple name meet in a file.
+                             BadImport is off, because Spring's rules ask for the opposite: an
+                             annotation value such as Type.SERVLET with the nested type imported. -->
+                        <arg>-Xplugin:ErrorProne -Xep:NullAway:ERROR -Xep:UnnecessarilyFullyQualified:ERROR -Xep:BadImport:OFF -XepOpt:NullAway:OnlyNullMarked=true -XepOpt:NullAway:JSpecifyMode=true</arg>
+                    </compilerArgs>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>com.google.errorprone</groupId>
+                            <artifactId>error_prone_core</artifactId>
+                            <version>${error-prone.version}</version>
+                        </path>
+                        <path>
+                            <groupId>com.uber.nullaway</groupId>
+                            <artifactId>nullaway</artifactId>
+                            <version>${nullaway.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+                <executions>
+                    <!-- Tests share packages with @NullMarked code, so test compilation leaves
+                         Error Prone's checks out, as Spring Framework's nullability plugin does
+                         by default. The one check that runs is the rule on class names
+                         written in full, which holds for tests as it does for main code. -->
+                    <execution>
+                        <id>default-testCompile</id>
+                        <configuration>
+                            <compilerArgs combine.self="override">
+                                <arg>-Xlint:all,-processing</arg>
+                                <arg>-Werror</arg>
+                                <arg>-XDcompilePolicy=simple</arg>
+                                <arg>--should-stop=ifError=FLOW</arg>
+                                <arg>-XDaddTypeAnnotationsToSymbol=true</arg>
+                                <arg>-Xplugin:ErrorProne -XepDisableAllChecks -Xep:UnnecessarilyFullyQualified:ERROR</arg>
+                            </compilerArgs>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- Everything Maven Central asks of a published artifact. It sits in a profile
+             because javadoc, signing and the SBOM each cost minutes, and the everyday
+             build runs many times a day. CI runs this profile with -Dgpg.skip=true, so a
+             javadoc error fails the pull request that introduces it. -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <!-- A release is built on Java 21, the oldest version the library
+                         supports. The JDK lands in every jar's manifest as Build-Jdk-Spec
+                         and decides the javadoc output, so a rebuild from the tag matches
+                         the published bytes on that JDK alone. RELEASING.md states the
+                         rule, and this execution stops a release build on another JDK. -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-enforcer-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>enforce-release-jdk</id>
+                                <goals>
+                                    <goal>enforce</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <requireJavaVersion>
+                                            <version>[21,22)</version>
+                                            <message>A release is built on Java 21, as RELEASING.md describes. Point JAVA_HOME at a Java 21 and run the build again.</message>
+                                        </requireJavaVersion>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar-no-fork</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <quiet>true</quiet>
+                            <!-- The javadoc tool resolves external links over the network,
+                                 which a release build should stay independent of. -->
+                            <detectJavaApiLink>false</detectJavaApiLink>
+                            <!-- The internal packages sit outside the public API, as the
+                                 japicmp excludes above say, so the published javadoc leaves
+                                 them out and a reader browsing it sees the types a release
+                                 keeps stable. The plugin matches each pattern against one
+                                 package at a time: a leading star spans any number of
+                                 levels above, and every other star spans exactly one, so
+                                 the first pattern takes each internal root and the second
+                                 takes the packages one level below it, which is as deep as
+                                 the internal trees go. -->
+                            <excludePackageNames>*.internal:*.internal.*</excludePackageNames>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- This project publishes an SBOM for each module with every
+                         release, which the Cyber Resilience Act practices ask for. -->
+                    <plugin>
+                        <groupId>org.cyclonedx</groupId>
+                        <artifactId>cyclonedx-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>build-sbom</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>makeBom</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <!-- A release lands in the portal and waits there, so the
+                                 first publication of a namespace gets a look before it
+                                 becomes permanent. Maven Central keeps every version
+                                 forever once it is released. -->
+                            <autoPublish>false</autoPublish>
+                            <!-- The plugin rebinds the deploy phase to its own publish
+                                 goal and bundles every module of the reactor, and it
+                                 reads this list alone: maven.deploy.skip belongs to
+                                 maven-deploy-plugin, which the release profile takes out
+                                 of the deploy phase. Each entry is an artifactId. The
+                                 seven modules named here are the fixtures, the test
+                                 consumers and the coverage aggregate, which exist for
+                                 this build alone and would fail Central's validation. -->
+                            <excludeArtifacts>
+                                <excludeArtifact>gatool-fixtures-movies-schema</excludeArtifact>
+                                <excludeArtifact>gatool-fixtures-movies-api</excludeArtifact>
+                                <excludeArtifact>gatool-fixtures-conformance-app</excludeArtifact>
+                                <excludeArtifact>gatool-tests-skeleton</excludeArtifact>
+                                <excludeArtifact>gatool-tests-consumer-in-process</excludeArtifact>
+                                <excludeArtifact>gatool-tests-consumer-mcp</excludeArtifact>
+                                <excludeArtifact>gatool-coverage</excludeArtifact>
+                            </excludeArtifacts>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

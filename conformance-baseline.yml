@@ -1,0 +1,58 @@
+# Scenarios that the MCP conformance suite reports as failures for this release.
+#
+# Every line comes from an observed run, because the suite treats a listed
+# scenario that passes as a stale entry and fails the run. Measured
+# against @modelcontextprotocol/conformance@0.2.0-alpha.11 with
+# --requirements 2025-11-25, which reported 41 passed and then "Baseline check
+# passed: all failures are expected". The suite also runs json-schema-2020-12
+# and server-sse-polling, which it reports as pending and leaves unscored, so
+# they stay out of this list.
+#
+# The claim this release makes covers the tool contract and the transport rules,
+# and those scenarios pass: server-initialize, ping, tools-list, the four tool
+# content types, mixed content, tools-call-error and dns-rebinding-protection.
+server:
+  # This server serves tools. GATool turns GraphQL operation files into tools, and
+  # an application declares its own resources, prompts and completions when it
+  # wants them, so the fixture declares tools alone. Those three capabilities
+  # stay out of the initialize answer, so the server answers resources/list and
+  # prompts/list with -32601, which is what the suite's own check that
+  # capabilities match handlers requires of a server that does not declare the
+  # capability. Each scenario here asks for a resource, a prompt or a completion.
+  - completion-complete
+  - resources-list
+  - resources-read-text
+  - resources-read-binary
+  - resources-templates-read
+  - resources-subscribe
+  - resources-unsubscribe
+  - prompts-list
+  - prompts-get-simple
+  - prompts-get-with-args
+  - prompts-get-embedded-resource
+  - prompts-get-with-image
+
+  # A stateless server answers a request and closes, so the client is out of
+  # reach afterwards. Sampling and elicitation both ask the server to call the
+  # client, and the multiple-stream scenario wants several streams open in one
+  # session. The fixture declares the four tools these scenarios call, each
+  # taking a request context, which Spring AI 2.0.1 leaves unregistered on a
+  # stateless server, and the stateful run passes all five.
+  - tools-call-sampling
+  - tools-call-elicitation
+  - elicitation-sep1034-defaults
+  - elicitation-sep1330-enums
+  - server-sse-multiple-streams
+
+  # Spring AI 2.0.1 skips a tool method that takes a request context when the
+  # server is stateless, which its own log states: "Stateless servers doesn't
+  # support bidirectional parameters." The fixture declares both tools, Spring AI
+  # leaves them unregistered, and each scenario then looks for a tool that is
+  # missing from tools/list.
+  - tools-call-with-progress
+  - tools-call-with-logging
+
+  # The stateless server answers logging/setLevel with "Missing handler for
+  # request type", and it leaves the logging capability out of its initialize
+  # answer.
+  - logging-set-level

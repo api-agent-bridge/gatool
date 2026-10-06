@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gatool-spring-boot-starter-test</artifactId>
+    <name>gatool-spring-boot-starter-test</name>
+    <description>The assertions of gatool-spring-boot-test together with spring-boot-starter-test, for a team's own tests</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-spring-boot-test</artifactId>
+        </dependency>
+        <!-- The test starter every Spring Boot application already uses, so adding this
+             one in test scope brings JUnit, AssertJ and Spring's test support along with
+             the two GATool assertions. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- A published jar names its own automatic module, so an application on the
+                 module path reads a stable name instead of one derived from the file
+                 name of the jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>io.gatool.boot.test.starter</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <!-- This starter carries dependencies and one documented package, so javadoc
+                 stops with "No source files for package io.gatool.boot.test.starter".
+                 Maven Central requires a javadoc jar beside every published jar, and this
+                 setting attaches an empty one. The modules that hold code keep the strict
+                 setting, where a javadoc error fails the build. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <failOnError>false</failOnError>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

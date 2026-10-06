@@ -1,0 +1,14 @@
+scalar Money
+scalar Instant
+scalar Long
+
+type Query {
+  "The card of one product, with values that are Java objects inside the application."
+  priceCard: PriceCard!
+}
+
+type PriceCard {
+  price: Money!
+  at: Instant!
+  version: Long!
+}

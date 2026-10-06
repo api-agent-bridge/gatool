@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>gatool-tests-consumer-mcp</artifactId>
+    <name>gatool-tests-consumer-mcp</name>
+    <description>An application that adds the MCP starter alone</description>
+
+    <properties>
+        <!-- Read by maven-deploy-plugin alone; the Central plugin reads excludeArtifacts in the root POM. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- Sonar measures the published modules alone, and this one stays out of Maven
+             Central. Its coverage of them still counts, because the scanner reads the
+             aggregate report the root POM names. -->
+        <sonar.skip>true</sonar.skip>
+    </properties>
+
+    <!-- This module declares one starter and Boot's test support, so a starter that
+         stops bringing something its own auto-configuration needs fails here, where
+         tests/skeleton, which adds both starters and the fixtures, would carry it on
+         the other one's classpath. -->
+    <dependencies>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-mcp-spring-boot-starter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

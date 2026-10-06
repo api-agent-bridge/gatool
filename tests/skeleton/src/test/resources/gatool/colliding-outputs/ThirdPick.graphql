@@ -1,0 +1,6 @@
+# Returns the third movie of a comparison.
+query ThirdPick($id: ID!) {
+  movie3: node(id: $id) {
+    id
+  }
+}

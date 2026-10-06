@@ -1,0 +1,8 @@
+# Looks up one movie by its id or by its exact title, with the live community rating.
+query MovieByLookup($by: MovieLookupInput!) {
+  movie(by: $by) {
+    id
+    title
+    communityRating
+  }
+}

@@ -1,0 +1,8 @@
+# Returns the highest-rated movies with the live community rating, which the rating service may withhold.
+query CommunityRating($first: Int = 10) {
+  topRatedMovies(first: $first) {
+    id
+    title
+    communityRating
+  }
+}

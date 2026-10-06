@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gatool-mcp-spring-boot-starter</artifactId>
+    <name>gatool-mcp-spring-boot-starter</name>
+    <description>Serves the operation files of the MCP locations as MCP tools, over Spring AI's MCP server on WebMVC</description>
+
+    <!-- An empty jar that carries dependencies, which is Spring Boot's own convention
+         for a starter. The auto-configuration lives in gatool-mcp-spring-boot, which
+         brings gatool-spring-boot with it. -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-mcp-spring-boot</artifactId>
+        </dependency>
+        <!-- Brings the servlet container, the MCP server auto-configurations and the
+             MCP Java SDK. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+        <!-- gatool-spring-boot and gatool-mcp-spring-boot make every framework their
+             adapters touch optional, and each starter brings back the ones its own side
+             needs. Without these two, @ConditionalOnClass(HttpSyncGraphQlClient.class)
+             backs off and no RestClient.Builder bean exists. -->
+        <dependency>
+            <groupId>org.springframework.graphql</groupId>
+            <artifactId>spring-graphql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-restclient</artifactId>
+        </dependency>
+        <!-- The default rate limiter runs inside an MCP tool call, so this starter brings
+             back the two libraries behind it. Bucket4j counts the calls, and Caffeine
+             holds one bucket per caller and tool, bounded and expiring. -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+        </dependency>
+        <!-- org.apache.lucene:lucene-core and lucene-analysis-common are deliberately
+             absent. The dynamic layer ranks schema coordinates with the first and splits
+             an identifier into stemmed words with the second, and that layer is
+             experimental and off by default, so a starter carrying 6.3 MB for it would
+             charge every application for a feature few of them run. A team that
+             switches the layer on adds both dependencies, which the README names and
+             which startup names again if either is missing. -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- A published jar names its own automatic module, so an application on the
+                 module path reads a stable name instead of one derived from the file
+                 name of the jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>io.gatool.boot.mcp.starter</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <!-- This starter carries dependencies and one documented package, so javadoc
+                 stops with "No public or protected classes found to document". Maven
+                 Central requires a javadoc jar beside every published jar, and this
+                 setting attaches an empty one. The modules that hold code keep the strict
+                 setting, where a javadoc error fails the build. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <failOnError>false</failOnError>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

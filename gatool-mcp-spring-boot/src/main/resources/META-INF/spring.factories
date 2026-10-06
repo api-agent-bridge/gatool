@@ -1,0 +1,10 @@
+org.springframework.boot.EnvironmentPostProcessor=\
+io.gatool.boot.mcp.autoconfigure.GAToolEnvironmentPostProcessor
+
+org.springframework.boot.diagnostics.FailureAnalyzer=\
+io.gatool.boot.mcp.autoconfigure.McpSecurityFailureAnalyzer
+
+org.springframework.context.ApplicationListener=\
+io.gatool.boot.mcp.autoconfigure.McpStdioLog4j2Listener,\
+io.gatool.boot.mcp.autoconfigure.McpStdioLogListener,\
+io.gatool.boot.mcp.autoconfigure.McpStdioStartupFailureReporter

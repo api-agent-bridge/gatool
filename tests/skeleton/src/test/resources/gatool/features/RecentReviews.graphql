@@ -1,0 +1,8 @@
+# Returns recent reviews, narrowed by when they were written and by the director's country.
+query RecentReviews($since: DateTime, $country: CountryCode, $filter: ReviewFilterInput, $first: Int = 20) {
+  reviews(since: $since, country: $country, filter: $filter, first: $first) {
+    id
+    score
+    createdAt
+  }
+}

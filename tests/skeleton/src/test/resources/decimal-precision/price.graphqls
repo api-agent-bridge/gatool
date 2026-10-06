@@ -1,0 +1,12 @@
+scalar Decimal @specifiedBy(url: "https://scalars.graphql.org/chillicream/decimal")
+scalar JSON
+
+type Query {
+  price(amount: Decimal!): Price
+}
+
+type Price {
+  value: Decimal
+  echo: Decimal
+  meta: JSON
+}

@@ -1,0 +1,6 @@
+# Filters folders through an input field the schema asks callers to stop using.
+query FoldersByOwner {
+  folders(filter: { owner: "ana" }) {
+    name
+  }
+}

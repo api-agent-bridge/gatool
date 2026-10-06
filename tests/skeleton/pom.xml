@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>gatool-tests-skeleton</artifactId>
+    <name>gatool-tests-skeleton</name>
+    <description>End-to-end tests that call the starters the way an application does</description>
+
+    <properties>
+        <!-- Read by maven-deploy-plugin alone; the Central plugin reads excludeArtifacts in the root POM. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- Sonar measures the published modules alone, and this one stays out of Maven
+             Central. Its coverage of them still counts, because the scanner reads the
+             aggregate report the root POM names. -->
+        <sonar.skip>true</sonar.skip>
+    </properties>
+
+    <dependencies>
+        <!-- Test scope throughout, so the test classpath holds what a user of the
+             starters receives. -->
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-mcp-spring-boot-starter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-in-process-spring-boot-starter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-fixtures-movies-schema</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-fixtures-movies-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- What the README tells a team to add before switching the dynamic layer on,
+             which both starters leave out. The tests of that layer run here, so this
+             module takes the same step a team takes. -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analysis-common</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- What the README tells a team to add for the CI recipe, so the snapshot
+             test written the README's way compiles against the published starter. -->
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- What a team adds to secure the MCP endpoint, so the security tests run
+             against the real chain, the real decoder and a local issuer. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-oauth2-resource-server</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Keycloak in a container, for the end-to-end tests against a real issuer. The
+             tests skip themselves where Docker is absent. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- What a team adds for the client-credentials and token-exchange strategies, so
+             the outbound tests obtain real tokens from the local issuer. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-oauth2-client</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- The slice test reads the generated configuration metadata with Jackson 3.
+             The two starters already bring it, and this entry declares what the test
+             imports. -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- McpStarterInAWebFluxApplicationTests launches a host with WebFlux and Reactor
+                 Netty beside the classpath the MCP starter gives, which carries Spring MVC
+                 and Tomcat. The jars are copied here instead of joining the test classpath,
+                 because with Reactor Netty present Boot's client builder detection would move
+                 every test's outbound client onto Reactor. The versions come from Boot's
+                 dependency management, so a Boot upgrade carries them along. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-webflux-classpath</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/webflux-classpath</outputDirectory>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-webflux</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-http-codec</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-reactor-netty</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.springframework.boot</groupId>
+                                    <artifactId>spring-boot-netty</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.springframework</groupId>
+                                    <artifactId>spring-webflux</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.projectreactor.netty</groupId>
+                                    <artifactId>reactor-netty-http</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.projectreactor.netty</groupId>
+                                    <artifactId>reactor-netty-core</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-codec-http</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-codec-http2</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-codec-base</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-codec-compression</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-handler</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-handler-proxy</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-codec-socks</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-buffer</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-transport</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-transport-native-unix-common</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-resolver</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-resolver-dns</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-codec-dns</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>io.netty</groupId>
+                                    <artifactId>netty-common</artifactId>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                    <!-- The tests of a stdio server on Log4j2 and on java.util.logging start
+                         the server as a process whose classpath holds these jars where the
+                         classpath of the tests holds Logback. They are copied for the same
+                         reason as the WebFlux jars: on the classpath of the tests a second
+                         SLF4J provider would print its warning into the output of every
+                         test, and Boot would keep choosing Logback. Boot's dependency
+                         management gives the version of the three Log4j2 jars, which are
+                         the ones spring-boot-starter-log4j2 brings. The provider for
+                         java.util.logging takes its version from the root POM, which says
+                         why. -->
+                    <execution>
+                        <id>copy-log4j2-classpath</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/log4j2-classpath</outputDirectory>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.apache.logging.log4j</groupId>
+                                    <artifactId>log4j-core</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.logging.log4j</groupId>
+                                    <artifactId>log4j-slf4j2-impl</artifactId>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.apache.logging.log4j</groupId>
+                                    <artifactId>log4j-jul</artifactId>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>copy-java-util-logging-classpath</id>
+                        <phase>process-test-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/java-util-logging-classpath</outputDirectory>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.slf4j</groupId>
+                                    <artifactId>slf4j-jdk14</artifactId>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

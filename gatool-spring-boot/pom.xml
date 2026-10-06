@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gatool-spring-boot</artifactId>
+    <name>gatool-spring-boot</name>
+    <description>The auto-configuration both flavours of GATool share: the schema, the operation files, the executors and the outbound credentials</description>
+
+    <!-- The core of both flavours. gatool-mcp-spring-boot and gatool-in-process-spring-boot
+         depend on this module and add their own auto-configuration, which is the shape
+         Spring Boot's reference asks for when a library has several flavours. -->
+    <dependencies>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!-- The eight below arrive with the four above, and the code of this module
+             imports their types: bean and context types, Boot's binder and failure
+             analysis, the log, the null annotations, graphql-java's execution types and
+             Jackson's exception, type reference and inclusion annotation. Each is
+             declared, so this build and an application's hold when one of those paths
+             changes. Spring Boot manages every version. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.graphql-java</groupId>
+            <artifactId>graphql-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <!-- The IDE reads processors from the dependency classpath. This build reads them
+             from the annotation processor path below. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Every framework the executors and the credential strategies touch is optional
+             here, and the two starters bring them back. An optional dependency stays on
+             this module's own compile and test paths, so the tests below reach all of
+             them. -->
+        <dependency>
+            <groupId>org.springframework.graphql</groupId>
+            <artifactId>spring-graphql</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- RestClient, which the remote executor and the schema reader call the API
+             through. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Optional, because an application without Spring Security calls the API with
+             a static header or without a credential, and the OAuth2 strategies and the
+             forwarded token read these once the team adds
+             spring-boot-starter-security-oauth2-client or the resource server starter. -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-resource-server</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-client</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-restclient</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- The three below arrive with the optional frameworks above, and the code
+             that touches those frameworks names their types as well: the request
+             factory builder and its settings from spring-boot-http-client, the
+             Authentication the forwarded token is read from, and the Mono the embedded
+             executor receives from Spring for GraphQL. Optional like the frameworks
+             they belong to, so an application receives them from the same starters. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-http-client</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- EmbeddingModel, which the embedding backend of the dynamic layer ranks with. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-model</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- The search index of the dynamic layer, which publishes three tools when
+             gatool.dev.experimental.generate-tools names a dynamic value. Optional here,
+             and both starters leave them out, so a team that switches the layer on adds
+             the two dependencies the README names: the index and the searcher from
+             lucene-core, and the word splitting and stemming of lucene-analysis-common,
+             without which a question in plain words cannot find topRatedMovies. -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analysis-common</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- The tests of this module are unit tests. The context tests that need Boot's
+             test support live in tests/skeleton, where the starter's own classpath runs. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- MockClientHttpRequest and MockClientHttpResponse test the remote executor and
+             the credential strategies. They are Spring's own test doubles for the HTTP
+             client, so this module keeps its unit tests beside the code they cover, and
+             the context tests stay in tests/skeleton. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Jwt, which the forwarded token test builds a caller from. The main code reads
+             the token through its abstract authentication type, so the JOSE module is a
+             test dependency alone. -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- A logging backend for the tests that read a line the runner writes, such as
+             the WARN line a failed call leaves. Commons Logging routes to SLF4J when it
+             finds one, and without a backend SLF4J drops every line. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- A published jar names its own automatic module, so an application on the
+                 module path reads a stable name instead of one derived from the file
+                 name of the jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>io.gatool.boot</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- The parent sets annotationProcessorPaths for Error Prone and NullAway,
+                         and that sets javac's -processorpath, so javac reads processors from
+                         that path alone. combine.children="append" keeps the parent's two
+                         entries and adds these two, so NullAway keeps checking main code while
+                         Boot's processors run. The configuration processor writes the
+                         property metadata an IDE reads. The auto-configure processor writes
+                         META-INF/spring-autoconfigure-metadata.properties, which Boot's
+                         reference asks of a third-party auto-configuration module: the
+                         context reads the class and bean conditions from that file and
+                         skips an auto-configuration whose conditions fail without loading
+                         its class. -->
+                    <annotationProcessorPaths combine.children="append">
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                        </path>
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-autoconfigure-processor</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,8 @@
+# Returns a price for an amount.
+query Price($amount: Decimal!) {
+  price(amount: $amount) {
+    value
+    echo
+    meta
+  }
+}

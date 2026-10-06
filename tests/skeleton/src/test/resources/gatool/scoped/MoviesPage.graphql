@@ -1,0 +1,6 @@
+# Pages through the movies, without saying who may call it.
+query MoviesPage($first: Int = 2) {
+  movies(first: $first) {
+    edges { node { id title } }
+  }
+}

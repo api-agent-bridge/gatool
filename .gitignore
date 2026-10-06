@@ -1,0 +1,10 @@
+target/
+.idea/
+*.iml
+.DS_Store
+
+# Working notes stay out of the published repository.
+docs/
+
+# Snapshots a browser automation tool leaves behind.
+.playwright-mcp/

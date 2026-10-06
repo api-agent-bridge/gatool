@@ -1,0 +1,6 @@
+# Returns the currency a parcel is priced in.
+query ParcelCurrency($currency: Currency) {
+  parcel(currency: $currency) {
+    currency
+  }
+}

@@ -1,0 +1,6 @@
+# Orders folders by an enum value the schema asks callers to stop using.
+query FoldersBySize {
+  folder(name: "docs", order: SIZE) {
+    name
+  }
+}

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gatool-spring-boot-test</artifactId>
+    <name>gatool-spring-boot-test</name>
+    <description>Assertions for a team's own tests: the operation files validate, and the tool contract matches its snapshot</description>
+
+    <!-- The code behind gatool-spring-boot-starter-test, kept apart from the starter the
+         way spring-boot-test sits apart from spring-boot-starter-test, so test support
+         stays out of the runtime jars and a team can depend on this module alone. -->
+    <dependencies>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-spring-boot</artifactId>
+        </dependency>
+        <!-- The four below arrive with gatool-spring-boot, and the code of this module
+             imports their types: the operation file check from gatool-core, the mapper
+             and the printer the snapshot is written with, and the null annotations.
+             Each is declared, so this build and an application's hold when one of
+             those paths changes. -->
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+        <!-- JsonAssert, the comparator the project's own snapshot check uses, and
+             JSONassert underneath it, which spring-test leaves optional. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.skyscreamer</groupId>
+            <artifactId>jsonassert</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-fixtures-movies-schema</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- A published jar names its own automatic module, so an application on the
+                 module path reads a stable name instead of one derived from the file
+                 name of the jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>io.gatool.boot.test</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

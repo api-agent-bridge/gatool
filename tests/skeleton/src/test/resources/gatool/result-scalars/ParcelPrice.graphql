@@ -1,0 +1,6 @@
+# Returns the price of a parcel.
+query ParcelPrice($above: Money) {
+  parcel(above: $above) {
+    price
+  }
+}

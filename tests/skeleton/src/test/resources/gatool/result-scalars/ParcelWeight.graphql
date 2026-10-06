@@ -1,0 +1,6 @@
+# Returns the weight of a parcel.
+query ParcelWeight($heavierThan: Weight) {
+  parcel(heavierThan: $heavierThan) {
+    weight
+  }
+}

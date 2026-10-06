@@ -1,0 +1,2 @@
+io.gatool.boot.autoconfigure.GAToolAutoConfiguration
+io.gatool.boot.autoconfigure.GAToolCredentialsAutoConfiguration

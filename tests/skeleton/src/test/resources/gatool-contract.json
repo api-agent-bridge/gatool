@@ -1,0 +1,54 @@
+{
+  "mcp" : [ {
+    "name" : "topRatedMovies",
+    "title" : null,
+    "description" : "Returns the highest-rated movies, best first.",
+    "inputSchema" : {
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "type" : "object",
+      "properties" : {
+        "first" : {
+          "anyOf" : [ {
+            "type" : "integer"
+          }, {
+            "type" : "null"
+          } ],
+          "description" : "How many movies to return.",
+          "default" : 10
+        }
+      },
+      "required" : [ ],
+      "additionalProperties" : false
+    },
+    "outputSchema" : null,
+    "readOnly" : true,
+    "openWorld" : null,
+    "scopes" : null
+  } ],
+  "inProcess" : [ {
+    "name" : "topRatedMovies",
+    "title" : null,
+    "description" : "Returns the highest-rated movies, best first.",
+    "inputSchema" : {
+      "$schema" : "https://json-schema.org/draft/2020-12/schema",
+      "type" : "object",
+      "properties" : {
+        "first" : {
+          "anyOf" : [ {
+            "type" : "integer"
+          }, {
+            "type" : "null"
+          } ],
+          "description" : "How many movies to return.",
+          "default" : 10
+        }
+      },
+      "required" : [ ],
+      "additionalProperties" : false
+    },
+    "outputSchema" : null,
+    "readOnly" : true,
+    "openWorld" : null,
+    "scopes" : null
+  } ]
+}

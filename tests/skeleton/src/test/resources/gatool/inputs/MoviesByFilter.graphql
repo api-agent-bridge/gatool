@@ -1,0 +1,11 @@
+# Finds movies that match a filter.
+query MoviesByFilter($filter: MovieFilterInput) {
+  movies(filter: $filter) {
+    edges {
+      node {
+        id
+        title
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WARN and above reach the console, so the build output stays free of the DEBUG
+     lines Logback writes while it runs unconfigured. The tests of the stdio log start
+     an application whose class loader hides this file, so that Spring Boot loads its
+     own defaults, and put this configuration back when they finish. -->
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

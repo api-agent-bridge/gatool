@@ -1,0 +1,10 @@
+# Adds a review to a movie.
+mutation AddReview($input: AddReviewInput!) {
+  addReview(input: $input) {
+    review {
+      id
+      score
+      comment
+    }
+  }
+}

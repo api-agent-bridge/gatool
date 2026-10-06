@@ -1,0 +1,6 @@
+# Limits folders through an argument the schema asks callers to stop using.
+query FoldersLimited {
+  folder(name: "docs", limit: 1) {
+    name
+  }
+}

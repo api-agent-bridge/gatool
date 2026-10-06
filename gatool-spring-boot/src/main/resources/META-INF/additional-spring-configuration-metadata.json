@@ -1,0 +1,32 @@
+{
+  "properties": [
+    {
+      "name": "gatool.mcp.operations.locations",
+      "type": "java.util.List<java.lang.String>",
+      "defaultValue": [
+        "optional:classpath*:gatool/mcp/"
+      ],
+      "description": "Folders that hold the operation files published as MCP tools. Naming a folder replaces this default, so list gatool/mcp/ beside a new folder to keep the tools already there."
+    },
+    {
+      "name": "gatool.in-process.operations.locations",
+      "type": "java.util.List<java.lang.String>",
+      "defaultValue": [
+        "optional:classpath*:gatool/in-process/"
+      ],
+      "description": "Folders that hold the operation files published as Spring AI in-process tools. Naming a folder replaces this default, so list gatool/in-process/ beside a new folder to keep the tools already there."
+    },
+    {
+      "name": "gatool.api.schema.cache-directory",
+      "type": "java.lang.String",
+      "defaultValue": "${java.io.tmpdir}/gatool-${user.name}/schema",
+      "description": "Where a schema fetched from a URL is cached with its ETag, so the next startup sends If-None-Match and a registry that is down starts the application on the copy. The default is schema, inside a folder named gatool- and the account the JVM runs as, under the JVM's temporary directory, so the copy lives as long as that directory does. GATool makes the default folder for its owner alone and uses it only while that account owns it and group and others cannot write to it. A team that wants the copy to survive, or to live on a volume of its own, sets this property, and GATool uses that directory as it is. Blank fetches at every startup."
+    },
+    {
+      "name": "gatool.dev.experimental.dynamic-operations.vector-cache-directory",
+      "type": "java.lang.String",
+      "defaultValue": "${java.io.tmpdir}/gatool-${user.name}/vectors",
+      "description": "Where embedded fields are cached, so a large schema is embedded once. The default is vectors, inside a folder named gatool- and the account the JVM runs as, under the JVM's temporary directory, so the cache lives as long as that directory does. GATool makes the default folder for its owner alone and uses it only while that account owns it and group and others cannot write to it. A team that wants the cache to survive, or to live on a volume of its own, sets this property, and GATool uses that directory as it is. Blank embeds at every startup."
+    }
+  ]
+}

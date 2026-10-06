@@ -1,0 +1,6 @@
+# Returns the highest-rated movies as cards, best first.
+query TopRatedCards($first: Int = 10) {
+  topRatedMovies(first: $first) {
+    ...MovieCard
+  }
+}

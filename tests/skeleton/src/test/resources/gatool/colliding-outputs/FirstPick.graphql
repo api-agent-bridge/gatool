@@ -1,0 +1,6 @@
+# Returns the first movie of a comparison.
+query FirstPick($id: ID!) {
+  movie1: node(id: $id) {
+    id
+  }
+}

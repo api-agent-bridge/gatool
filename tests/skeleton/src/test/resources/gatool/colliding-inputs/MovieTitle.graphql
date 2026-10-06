@@ -1,0 +1,8 @@
+# Returns the title of one movie.
+query MovieTitle($nodeId: ID!) {
+  node(id: $nodeId) {
+    ... on Movie {
+      title
+    }
+  }
+}

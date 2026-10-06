@@ -1,0 +1,10 @@
+# Lists the genre of every movie a filter matches, dramas unless the filter says otherwise.
+query MoviesOfAGenre($filter: MovieFilterInput = { genre: DRAMA }) {
+  movies(filter: $filter, first: 10) {
+    edges {
+      node {
+        genre
+      }
+    }
+  }
+}

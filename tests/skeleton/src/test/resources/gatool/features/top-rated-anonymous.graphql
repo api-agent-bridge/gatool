@@ -1,0 +1,6 @@
+# The same list from a file whose operation is anonymous.
+query {
+  topRatedMovies(first: 2) {
+    title
+  }
+}

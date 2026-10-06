@@ -1,0 +1,36 @@
+server:
+  # A port of its own, so a run leaves the ports that development tools take free.
+  port: 8111
+  address: 127.0.0.1
+
+spring:
+  application:
+    name: gatool-conformance-fixture
+  ai:
+    mcp:
+      server:
+        protocol: STATELESS
+        name: gatool-conformance-fixture
+        version: 0.1.0
+
+gatool:
+  api:
+    # The suite calls the tools this application declares, so its calls do not reach
+    # the GraphQL API. The schema below is what the operation file validates against.
+    url: http://127.0.0.1:1/graphql
+    schema:
+      location: classpath:io/gatool/fixtures/movies/movies.graphqls
+  mcp:
+    transport:
+      # The DNS rebinding scenario sends an Origin from another host and expects a
+      # refusal, and it sends a localhost Origin and expects it through.
+      allowed-origins:
+        - http://localhost:8111
+        - http://127.0.0.1:8111
+    security:
+      unsafe:
+        allow-mcp-calls-without-authentication: true
+
+logging:
+  level:
+    io.gatool: INFO

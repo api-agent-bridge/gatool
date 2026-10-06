@@ -1,0 +1,8 @@
+# Searches movies and people by a piece of their name, open to every signed-in caller.
+query SearchMovies($text: String!) @gatool(scopes: []) {
+  search(text: $text) {
+    __typename
+    ... on Movie { id title }
+    ... on Person { id name }
+  }
+}

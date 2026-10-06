@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gatool-core</artifactId>
+    <name>gatool-core</name>
+    <description>The tool model and GraphQL operation handling of GATool, free of Spring</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.graphql-java</groupId>
+            <artifactId>graphql-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!-- StreamWriteFeature, which the schema writers set on their mapper. It arrives
+             with jackson-databind, and this entry declares what the code imports, so the
+             build holds when that path changes. -->
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-fixtures-movies-schema</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- A published jar names its own automatic module, so an application on the
+                 module path reads a stable name instead of one derived from the file
+                 name of the jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>io.gatool.core</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>keep-spring-out-of-core</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>org.springframework*</exclude>
+                                        <exclude>io.modelcontextprotocol*</exclude>
+                                        <exclude>com.graphql-java:graphql-java-extended-scalars</exclude>
+                                    </excludes>
+                                    <searchTransitive>true</searchTransitive>
+                                    <message>gatool-core depends only on graphql-java, Jackson and Commons Lang, so Spring, the MCP Java SDK and the extended scalars library stay out of it. Remote mode coerces custom scalars through its own pass-through wiring.</message>
+                                </bannedDependencies>
+                                <!-- OneOfFieldValueRule builds on graphql-java's @Internal
+                                     Validator.createRules hook and AbstractRule, and graphql-java 26
+                                     removed both: on 26 the validator skips the override, the rule stays
+                                     unloaded, and the three oneOf checks disappear without a build error
+                                     (measured: 0 errors for a null literal, a nullable variable and a
+                                     defaulted nullable variable on 26.1). An override to 26 therefore
+                                     fails here. -->
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>com.graphql-java:graphql-java:[26,)</exclude>
+                                    </excludes>
+                                    <searchTransitive>true</searchTransitive>
+                                    <message>graphql-java 26 removed the @Internal Validator.createRules hook and AbstractRule that OneOfFieldValueRule builds on, so on 26 the oneOf checks silently drop out of validation. Stay on 25 until the rule is rewritten on public API.</message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

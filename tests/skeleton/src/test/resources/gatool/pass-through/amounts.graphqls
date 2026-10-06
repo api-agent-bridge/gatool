@@ -1,0 +1,6 @@
+scalar Decimal
+scalar Long
+
+type Query {
+  amounts(d: Decimal, n: Long): String!
+}

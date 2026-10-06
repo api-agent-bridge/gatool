@@ -1,0 +1,5 @@
+fragment MovieCard on Movie {
+  id
+  title
+  rating
+}

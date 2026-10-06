@@ -1,0 +1,19 @@
+"An ISO 4217 currency code, such as EUR."
+scalar Currency
+
+"A weight in kilograms."
+scalar Weight
+
+"An amount of money."
+scalar Money
+
+type Query {
+  "Returns the parcel a shipment travels in, priced in a currency."
+  parcel(currency: Currency, heavierThan: Weight, above: Money): Parcel
+}
+
+type Parcel {
+  currency: Currency
+  weight: Weight
+  price: Money
+}

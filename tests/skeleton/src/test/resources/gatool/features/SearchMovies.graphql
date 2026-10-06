@@ -1,0 +1,14 @@
+# Finds the movies and the people whose title or name contain the text.
+query SearchMovies($text: String!) {
+  search(text: $text) {
+    __typename
+    ... on Movie {
+      id
+      title
+    }
+    ... on Person {
+      id
+      name
+    }
+  }
+}

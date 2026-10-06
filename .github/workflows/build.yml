@@ -1,0 +1,132 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# One run per ref at a time. A push to a pull request cancels the run of the
+# commit it replaced, because that result is stale the moment the next commit
+# lands. Runs on main queue behind each other, so every merged commit keeps its
+# full run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Each job carries a timeout, so a hung download or a fixture that stops
+# answering frees the runner: the matrix build, which runs every test, gets
+# thirty minutes, and the rest get twenty.
+jobs:
+  build:
+    name: Java ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['21', '25']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+      - name: Build and test
+        run: ./mvnw --batch-mode --no-transfer-progress verify
+
+  # Builds everything a release publishes, so a javadoc error or a broken SBOM
+  # fails a pull request. The tests stay out, because the two jobs above have
+  # already run them on this commit, and signing stays out, because the key
+  # belongs to the release itself.
+  release-artifacts:
+    name: Java 21, release artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build the javadoc jar, the sources jar and the SBOM
+        run: ./mvnw --batch-mode --no-transfer-progress verify -Prelease -Dgpg.skip=true -DskipTests
+
+  # Runs the official MCP conformance suite against a fixture that serves GATool's
+  # MCP endpoint. A failure outside conformance-baseline.yml stops the build, and
+  # so does a baselined scenario that starts passing, so the baseline lists only
+  # scenarios that fail as the suite and Spring AI move on.
+  conformance:
+    name: MCP conformance, stateless
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build the conformance fixture
+        run: ./mvnw --batch-mode --no-transfer-progress -DskipTests package -pl fixtures/conformance-app -am
+      - name: Start the fixture and wait for it to answer
+        run: |
+          JAR=$(ls fixtures/conformance-app/target/gatool-fixtures-conformance-app-*.jar | head -1)
+          java -jar "$JAR" > conformance-app.log 2>&1 &
+          curl --silent --show-error --retry-connrefused --retry 40 --retry-delay 1 --max-time 90 \
+               --output /dev/null \
+               -X POST http://127.0.0.1:8111/mcp \
+               -H 'Content-Type: application/json' \
+               -H 'Accept: application/json, text/event-stream' \
+               -H 'MCP-Protocol-Version: 2025-11-25' \
+               -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}'
+      - name: Run the MCP conformance suite
+        run: |
+          npx -y @modelcontextprotocol/conformance@0.2.0-alpha.11 server \
+            --url http://127.0.0.1:8111/mcp \
+            --requirements 2025-11-25 \
+            --expected-failures conformance-baseline.yml
+      - name: Show the fixture log when the suite fails
+        if: failure()
+        run: tail -100 conformance-app.log
+
+  # The same suite against the same fixture with a session per client, which
+  # passes the scenarios a stateless server cannot: logging, progress, several
+  # streams in one session, and the session lifecycle itself.
+  conformance-stateful:
+    name: MCP conformance, stateful
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Build the conformance fixture
+        run: ./mvnw --batch-mode --no-transfer-progress -DskipTests package -pl fixtures/conformance-app -am
+      - name: Start the fixture in stateful mode and wait for it to answer
+        run: |
+          JAR=$(ls fixtures/conformance-app/target/gatool-fixtures-conformance-app-*.jar | head -1)
+          java -jar "$JAR" --spring.ai.mcp.server.protocol=STREAMABLE > conformance-app.log 2>&1 &
+          curl --silent --show-error --retry-connrefused --retry 40 --retry-delay 1 --max-time 90 \
+               --output /dev/null \
+               -X POST http://127.0.0.1:8111/mcp \
+               -H 'Content-Type: application/json' \
+               -H 'Accept: application/json, text/event-stream' \
+               -H 'MCP-Protocol-Version: 2025-11-25' \
+               -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}'
+      - name: Run the MCP conformance suite
+        run: |
+          npx -y @modelcontextprotocol/conformance@0.2.0-alpha.11 server \
+            --url http://127.0.0.1:8111/mcp \
+            --requirements 2025-11-25 \
+            --expected-failures conformance-baseline-stateful.yml
+      - name: Show the fixture log when the suite fails
+        if: failure()
+        run: tail -100 conformance-app.log

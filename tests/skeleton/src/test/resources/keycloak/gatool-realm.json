@@ -1,0 +1,184 @@
+{
+  "realm": "gatool",
+  "enabled": true,
+  "accessTokenLifespan": 300,
+  "clientScopes": [
+    {
+      "name": "basic",
+      "description": "The subject and the username, which Keycloak's own basic and profile scopes would add.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "false",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-sub-mapper",
+          "consentRequired": false,
+          "config": {
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "mcp:tools",
+      "description": "Call tools on the GATool MCP server.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "movies:read",
+      "description": "Read the movie catalog.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "movies:detail",
+      "description": "Read the detail of one movie.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    },
+    {
+      "name": "movies:api",
+      "description": "Call the movie GraphQL API as GATool itself.",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      }
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "agent",
+      "name": "The MCP client an agent signs in with",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "agent-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "protocolMappers": [
+        {
+          "name": "gatool-server audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "gatool-server",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "basic"
+      ],
+      "optionalClientScopes": [
+        "mcp:tools",
+        "movies:read",
+        "movies:detail"
+      ]
+    },
+    {
+      "clientId": "gatool-server",
+      "name": "The GATool MCP server, as an OAuth2 client of the movie API",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "gatool-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "attributes": {
+        "standard.token.exchange.enabled": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "movies-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "movies-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ],
+      "defaultClientScopes": [
+        "basic",
+        "movies:api"
+      ],
+      "optionalClientScopes": [
+        "mcp:tools",
+        "movies:read",
+        "movies:detail"
+      ]
+    },
+    {
+      "clientId": "movies-api",
+      "name": "The movie GraphQL API, the audience of exchanged tokens",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "movies-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "defaultClientScopes": [
+        "basic"
+      ],
+      "optionalClientScopes": [
+        "movies:read",
+        "movies:detail"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "mara",
+      "enabled": true,
+      "email": "mara@example.com",
+      "emailVerified": true,
+      "firstName": "Mara",
+      "lastName": "Example",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "mara123",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

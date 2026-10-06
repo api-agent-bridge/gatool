@@ -1,0 +1,3 @@
+io.gatool.boot.mcp.autoconfigure.GAToolMcpJsonMapperAutoConfiguration
+io.gatool.boot.mcp.autoconfigure.GAToolMcpAutoConfiguration
+io.gatool.boot.mcp.autoconfigure.GAToolMcpSecurityAutoConfiguration

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gatool-in-process-spring-boot-starter</artifactId>
+    <name>gatool-in-process-spring-boot-starter</name>
+    <description>Hands the operation files of the in-process locations to Spring AI's ChatClient, and leaves the MCP server out</description>
+
+    <!-- An empty jar that carries dependencies, which is Spring Boot's own convention
+         for a starter. The auto-configuration lives in gatool-in-process-spring-boot,
+         which brings gatool-spring-boot with it. -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-in-process-spring-boot</artifactId>
+        </dependency>
+        <!-- Carries ToolCallback, ToolCallbackProvider, ToolDefinition and
+             FunctionToolCallback. Every MCP artifact stays out, so an application that
+             wants in-process tools alone keeps the MCP server away. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-model</artifactId>
+        </dependency>
+        <!-- The same two that the MCP starter brings back, for the same reason: the
+             auto-configuration reads the schema and reaches the API through them. -->
+        <dependency>
+            <groupId>org.springframework.graphql</groupId>
+            <artifactId>spring-graphql</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-restclient</artifactId>
+        </dependency>
+        <!-- org.apache.lucene:lucene-core and lucene-analysis-common are deliberately
+             absent, as they are from the MCP starter. The dynamic layer publishes its
+             three tools on this side as well, and that layer is experimental and off by
+             default, so a team that switches it on adds the two dependencies the README
+             names, 6.3 MB together. -->
+    </dependencies>
+    <build>
+        <plugins>
+            <!-- A published jar names its own automatic module, so an application on the
+                 module path reads a stable name instead of one derived from the file
+                 name of the jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>io.gatool.boot.inprocess.starter</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <!-- This starter carries dependencies and one documented package, so javadoc
+                 stops with "No public or protected classes found to document". Maven
+                 Central requires a javadoc jar beside every published jar, and this
+                 setting attaches an empty one. The modules that hold code keep the strict
+                 setting, where a javadoc error fails the build. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <failOnError>false</failOnError>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

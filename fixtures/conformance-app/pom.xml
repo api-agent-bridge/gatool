@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>gatool-fixtures-conformance-app</artifactId>
+    <name>gatool-fixtures-conformance-app</name>
+    <description>The application that the MCP conformance suite runs against</description>
+
+    <properties>
+        <!-- A fixture that proves conformance stays out of Maven Central. -->
+        <!-- Read by maven-deploy-plugin alone; the Central plugin reads excludeArtifacts in the root POM. -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <!-- Sonar measures the published modules alone, and this one stays out of Maven
+             Central. Its coverage of them still counts, because the scanner reads the
+             aggregate report the root POM names. -->
+        <sonar.skip>true</sonar.skip>
+        <!-- The module stays out of Maven Central, so the release build leaves its
+             Javadoc unwritten, and the Javadoc warnings of that build are those of
+             the published modules alone. -->
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-mcp-spring-boot-starter</artifactId>
+        </dependency>
+        <!-- Carries the movie schema, so one operation file gives the suite a GATool tool
+             to list beside the tools this application declares itself. -->
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-fixtures-movies-schema</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- CI starts this application with java -jar before it runs the suite. -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

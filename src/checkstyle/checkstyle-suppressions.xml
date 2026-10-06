@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+		"-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+		"https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<!-- The suppressions Spring Boot grants its own code, applied here for the same
+     reasons: a test is read beside its name, a properties class documents each
+     property for the configuration metadata, and a configuration class holds
+     static helpers beside its bean methods. -->
+<suppressions>
+	<suppress files="[\\/]src[\\/]test[\\/]java[\\/]" checks="Javadoc*" />
+	<suppress files="[\\/]src[\\/]test[\\/]java[\\/]" checks="FileLength|MethodLength|ParameterNumber|RecordComponentNumber" />
+	<suppress files="[\\/]autoconfigure[\\/].*Properties\.java" checks="JavadocVariable" />
+	<suppress files=".+Configuration\.java" checks="HideUtilityClassConstructor" />
+	<suppress files=".+Application\.java" checks="HideUtilityClassConstructor" />
+</suppressions>

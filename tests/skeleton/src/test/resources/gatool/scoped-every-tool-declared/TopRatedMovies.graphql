@@ -1,0 +1,7 @@
+# Returns the highest-rated movies, best first, for callers who may read movies.
+query TopRatedMovies($first: Int = 3) @gatool(scopes: ["movies:read"]) {
+  topRatedMovies(first: $first) {
+    id
+    title
+  }
+}

@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gatool-mcp-spring-boot</artifactId>
+    <name>gatool-mcp-spring-boot</name>
+    <description>The MCP flavour of GATool: the auto-configuration that serves the operation files as MCP tools over Spring AI's server, with its transports, its rate limiter and the security of its endpoint</description>
+
+    <!-- The MCP flavour, on top of the core. The MCP starter is an empty jar that
+         depends on this module and on Spring AI's MCP server starter, which is the
+         shape Spring Boot's reference asks for when a library has several flavours. -->
+    <dependencies>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!-- The ten below arrive with the three above, and the code of this module
+             imports their types: GATool's tool model from gatool-core, Spring's core,
+             bean and context types, Boot's binder, its startup events and its failure
+             analysis, the log, the null annotations, Jackson's exception, type
+             reference and inclusion annotation, and the observation each tool call
+             opens. Each is declared, so this build and an application's hold when one
+             of those paths changes. Spring Boot manages every version but
+             gatool-core's. -->
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-observation</artifactId>
+        </dependency>
+        <!-- The IDE reads processors from the dependency classpath. This build reads them
+             from the annotation processor path below. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Every framework the MCP adapter touches is optional here, and the MCP starter
+             brings them back. An optional dependency stays on this module's own compile
+             and test paths, so the tests below reach all of them. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- The rate limiter reads the client address through ServletRequestAttributes,
+             whose getRequest() returns a servlet type, so the API sits on this module's
+             compile path. Spring Boot manages the version, and the MCP starter brings a
+             container that carries the implementation. -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Optional, because the security auto-configuration reads them when the team
+             adds spring-boot-starter-security-oauth2-resource-server. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-security</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- WebServerNamespace, which the health rule of the default chain this module
+             contributes reads to open the endpoint's additional paths on the application
+             port, ships in spring-boot-actuator; EndpointRequest itself ships in
+             spring-boot-security above. Optional, and guarded by a class condition,
+             because the endpoint exists only with the actuator. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-actuator</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-config</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-web</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-resource-server</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- spring-ai-mcp brings io.modelcontextprotocol.sdk:mcp 2.0.0, which brings
+             mcp-core and mcp-json-jackson3, so no POM names an SDK version. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-mcp</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- The stateful transport provider over WebMVC, which the MCP starter's
+             application brings and GATool builds itself to set a session cap and an
+             idle timeout. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>mcp-spring-webmvc</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-autoconfigure-mcp-server-common</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Bucket4j backs the default rate limiter, and its ConsumptionProbe publishes
+             the wait that a refusal message quotes. The MCP starter brings it back, as it
+             does every other optional framework this module's adapter touches. -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Caffeine holds the rate limiter's buckets, bounded by size and freed by the
+             time since a caller last arrived. Spring Boot manages the version. -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Logback, which Spring Boot logs through by default and the MCP starter brings
+             with spring-boot-starter-logging. Under stdio GATool attaches an appender of
+             its own that writes the log to stderr, and that one class names Logback's
+             types. Optional, because an application on another logging system starts
+             without it and the class is loaded only while Logback is present. Spring
+             Boot manages the version. -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- The six below arrive with the optional frameworks above, and the code that
+             touches those frameworks names their types as well: the Authentication a
+             caller is read from, the router functions the MCP endpoint is served by,
+             the Mono the SDK's transports and handlers return, the counter of the
+             buckets the rate limiter dropped, the appender and the encoder of the
+             stderr log, and the MDC a challenge reads the trace id from. Optional like
+             the frameworks they belong to, so an application receives them from the
+             same starters. mcp-core and mcp-json-jackson3 stay with spring-ai-mcp and
+             mcp-spring-webmvc, which bring them: the two BOMs this build imports leave
+             the MCP Java SDK unmanaged, and an entry here would name a version of the
+             SDK that has to follow Spring AI's. -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.projectreactor</groupId>
+            <artifactId>reactor-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- The tests of this module are unit tests. The context tests that need Boot's
+             test support live in tests/skeleton, where the starter's own classpath runs. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- The Log4j API, whose status logger the tests of the stdio log register
+             listeners with, and the bridge that sends the API on to SLF4J. Commons
+             Logging writes to the Log4j API once it finds that API, and with the bridge
+             present it writes to SLF4J, so the tests keep reading their lines from
+             Logback. spring-boot-starter-logging brings both to an application on the
+             MCP starter. The main code reads the API through reflection, so both stay
+             in the test scope. -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-to-slf4j</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- MockHttpServletRequest, MockHttpServletResponse and MockFilterChain test the
+             MCP compliance filter. They are Spring's own test doubles for the servlet API,
+             so this module keeps its unit tests beside the code they cover, and the
+             context tests stay in tests/skeleton. -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Jwt, which the session binding filter test builds a caller from. The main
+             code names JwtDecoder as a string in its conditions and reads the token
+             through Spring Security's abstract types, so the JOSE module is a test
+             dependency alone. -->
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-oauth2-jose</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- A published jar names its own automatic module, so an application on the
+                 module path reads a stable name instead of one derived from the file
+                 name of the jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>io.gatool.boot.mcp</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- The parent sets annotationProcessorPaths for Error Prone and NullAway,
+                         and that sets javac's -processorpath, so javac reads processors from
+                         that path alone. combine.children="append" keeps the parent's two
+                         entries and adds this one, so NullAway keeps checking main code while
+                         Boot's processor runs. The auto-configure processor writes
+                         META-INF/spring-autoconfigure-metadata.properties, which Boot's
+                         reference asks of a third-party auto-configuration module: the
+                         context reads the class and bean conditions from that file and
+                         skips an auto-configuration whose conditions fail without loading
+                         its class. -->
+                    <annotationProcessorPaths combine.children="append">
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-autoconfigure-processor</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,10 @@
+# Returns the reviews of one movie, each with the comment its reviewer wrote.
+query MovieReviews($by: MovieLookupInput!) {
+  movie(by: $by) {
+    title
+    reviews {
+      score
+      comment
+    }
+  }
+}

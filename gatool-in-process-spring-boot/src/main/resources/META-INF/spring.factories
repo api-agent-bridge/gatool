@@ -1,0 +1,2 @@
+org.springframework.boot.diagnostics.FailureAnalyzer=\
+io.gatool.boot.inprocess.autoconfigure.InProcessToolNameClashFailureAnalyzer

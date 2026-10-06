@@ -1,0 +1,8 @@
+# Returns the year one movie was released.
+query MovieYear($nodeID: ID!) {
+  node(id: $nodeID) {
+    ... on Movie {
+      releaseYear
+    }
+  }
+}

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.gatool</groupId>
+        <artifactId>gatool-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>gatool-in-process-spring-boot</artifactId>
+    <name>gatool-in-process-spring-boot</name>
+    <description>The in-process flavour of GATool: the auto-configuration that hands the operation files to Spring AI's ChatClient as tool callbacks</description>
+
+    <!-- The in-process flavour, on top of the core. The in-process starter is an empty
+         jar that depends on this module and on spring-ai-model, and every MCP artifact
+         stays out, so an application that wants in-process tools alone keeps the MCP
+         server away. -->
+    <dependencies>
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <!-- The eight below arrive with the three above, and the code of this module
+             imports their types: GATool's tool model from gatool-core, Spring's core,
+             bean and context types, Boot's failure analysis, the log, the null
+             annotations and Jackson's type reference. Each is declared, so this build
+             and an application's hold when one of those paths changes. Spring Boot
+             manages every version but gatool-core's. -->
+        <dependency>
+            <groupId>io.gatool</groupId>
+            <artifactId>gatool-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>tools.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+        </dependency>
+        <!-- The IDE reads processors from the dependency classpath. This build reads them
+             from the annotation processor path below. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-autoconfigure-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <!-- Carries ToolCallback, ToolCallbackProvider, ToolDefinition and
+             FunctionToolCallback. Optional here, and the in-process starter brings it
+             back, so the auto-configuration backs off through its class condition in a
+             build that leaves Spring AI out. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-model</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- The tests of this module are unit tests. The context tests that need Boot's
+             test support live in tests/skeleton, where the starter's own classpath runs. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- A published jar names its own automatic module, so an application on the
+                 module path reads a stable name instead of one derived from the file
+                 name of the jar. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>io.gatool.boot.inprocess</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- The parent sets annotationProcessorPaths for Error Prone and NullAway,
+                         and that sets javac's -processorpath, so javac reads processors from
+                         that path alone. combine.children="append" keeps the parent's two
+                         entries and adds this one, so NullAway keeps checking main code while
+                         Boot's processor runs. The auto-configure processor writes
+                         META-INF/spring-autoconfigure-metadata.properties, which Boot's
+                         reference asks of a third-party auto-configuration module: the
+                         context reads the class and bean conditions from that file and
+                         skips an auto-configuration whose conditions fail without loading
+                         its class. -->
+                    <annotationProcessorPaths combine.children="append">
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-autoconfigure-processor</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

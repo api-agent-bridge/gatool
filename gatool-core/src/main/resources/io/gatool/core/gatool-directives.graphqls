@@ -1,0 +1,15 @@
+"""
+Tool settings for an operation file. The starter removes the directive before it sends the document.
+"""
+directive @gatool(
+  "Explicit tool name, which wins over the naming strategy."
+  name: String
+  "Title for the MCP tool definition."
+  title: String
+  "Scopes that the tool needs, all of them. An empty list opens the tool to every caller with the baseline scopes."
+  scopes: [String!]
+  "Sets openWorldHint."
+  openWorld: Boolean
+  "Publishes an output schema for this tool, overriding gatool.results.publish-output-schema either way."
+  outputSchema: Boolean
+) on QUERY | MUTATION

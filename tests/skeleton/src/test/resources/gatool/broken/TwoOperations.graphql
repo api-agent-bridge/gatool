@@ -1,0 +1,2 @@
+query TopRated { topRatedMovies { title } }
+query AlsoTopRated { topRatedMovies { id } }

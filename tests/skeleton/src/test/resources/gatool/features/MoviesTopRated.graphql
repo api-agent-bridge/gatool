@@ -1,0 +1,7 @@
+# Returns the highest-rated movies, best first, under a name of its own.
+query MoviesTopRated($first: Int = 3) @gatool(name: "movies_top_rated", title: "Top rated movies", openWorld: false) {
+  topRatedMovies(first: $first) {
+    id
+    title
+  }
+}

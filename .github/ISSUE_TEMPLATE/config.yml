@@ -1,0 +1,7 @@
+# The page where someone chooses a template also links to the private channel
+# for a vulnerability, which SECURITY.md describes.
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/api-agent-bridge/gatool/security/advisories/new
+    about: Private reporting, as SECURITY.md describes. Please keep a vulnerability out of the public issues.

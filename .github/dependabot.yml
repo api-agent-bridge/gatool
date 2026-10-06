@@ -1,0 +1,15 @@
+# Dependabot opens one pull request per outdated dependency, once a week: for
+# the Maven build, which covers Spring Boot, Spring AI and every plugin the POMs
+# pin, and for the actions the workflow pins by commit. Each pull request runs
+# the build, the release artifacts and both conformance runs before a person
+# reads it.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
