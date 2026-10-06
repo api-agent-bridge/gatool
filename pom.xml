@@ -11,7 +11,7 @@
 
     <groupId>io.gatool</groupId>
     <artifactId>gatool-parent</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>pom</packaging>
 
     <name>GATool</name>
@@ -68,7 +68,7 @@
         <!-- Every jar entry and the SBOM take their timestamp from this value, so two
              builds of one commit give the same bytes and a published jar can be
              checked against a rebuild. -->
-        <project.build.outputTimestamp>2026-09-24T00:00:00Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-10-06T15:03:55Z</project.build.outputTimestamp>
 
         <spring-boot.version>4.1.1</spring-boot.version>
         <spring-ai.version>2.0.1</spring-ai.version>
