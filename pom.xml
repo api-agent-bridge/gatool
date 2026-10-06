@@ -67,7 +67,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <!-- Every jar entry and the SBOM take their timestamp from this value, so two
              builds of one commit give the same bytes and a published jar can be
-             checked against a rebuild. RELEASING.md updates it at each release. -->
+             checked against a rebuild. -->
         <project.build.outputTimestamp>2026-09-24T00:00:00Z</project.build.outputTimestamp>
 
         <spring-boot.version>4.1.1</spring-boot.version>
@@ -407,7 +407,7 @@
                     <artifactId>central-publishing-maven-plugin</artifactId>
                     <version>0.11.0</version>
                 </plugin>
-                <!-- RELEASING.md runs versions:set from the command line, and Maven
+                <!-- A release runs versions:set from the command line, and Maven
                      resolves an unpinned command-line plugin to its newest release, so
                      the version is pinned here to keep that step the same on every
                      machine. -->
@@ -610,8 +610,8 @@
                     <!-- A release is built on Java 21, the oldest version the library
                          supports. The JDK lands in every jar's manifest as Build-Jdk-Spec
                          and decides the javadoc output, so a rebuild from the tag matches
-                         the published bytes on that JDK alone. RELEASING.md states the
-                         rule, and this execution stops a release build on another JDK. -->
+                         the published bytes on that JDK alone. This execution stops a
+                         release build on another JDK. -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-enforcer-plugin</artifactId>
@@ -625,7 +625,7 @@
                                     <rules>
                                         <requireJavaVersion>
                                             <version>[21,22)</version>
-                                            <message>A release is built on Java 21, as RELEASING.md describes. Point JAVA_HOME at a Java 21 and run the build again.</message>
+                                            <message>A release is built on Java 21. Point JAVA_HOME at a Java 21 and run the build again.</message>
                                         </requireJavaVersion>
                                     </rules>
                                 </configuration>
