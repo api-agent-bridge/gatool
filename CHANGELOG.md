@@ -4,13 +4,26 @@
 
 ### Tool contract changes
 
+### Java API changes
+
+### Properties
+
+### Fixes
+
+## 0.1.0
+
+This is the first release of GATool. The README section
+[What this release does](README.md#what-this-release-does) covers what it
+provides.
+
+### Tool contract changes
+
 - A mutation whose answer passes `gatool.api.max-response-size` or
   `gatool.results.max-characters` now tells the model that the API
   answered and the write may have been applied, and asks it to read the
   current state before it writes again. The advice to ask for fewer
   fields or a smaller page used to follow a mutation as well, and it
   stays for queries.
-
 - The default server instructions describe a result as "a GraphQL
   response: the data entry holds the result of the executed operation, and
   the errors array holds any errors the API reported". They used to speak
@@ -28,6 +41,26 @@
   dynamic mode follow: they ask the model to read "any type the search
   result names that you need to look inside", where they asked it to read
   every type it touches.
+- Startup now stops where an MCP server bean was built without immediate
+  execution, because GATool reads who is calling from the request thread.
+- At call time, GATool now refuses any MCP tool call that arrives on a
+  thread other than the one serving the HTTP request, and records the
+  outcome as `off-request-thread`. A call refused for a missing scope
+  records `insufficient-scope`.
+- The same refusal now covers a per-caller credential read under a
+  security context strategy that a pooled thread inherits, such as Spring
+  Security's inheritable thread-local strategy.
+- For a 408 or a 425 answer to a mutation, the model now reads a shorter
+  sentence: read the current state before writing again. A 5xx or a 429
+  still tells the model the first call may already have applied.
+- A schema GATool fetches from a registry can still stop a restart if it
+  drifts from the operation files; the build check run against the
+  registry's schema is the place to catch that drift first.
+- The new README section "Compatibility" states what a patch release
+  keeps and what a minor release may change, until GATool reaches 1.0.
+- Planned for the release after 0.1.0: carrying the caller inside the MCP
+  transport context, so the thread a call runs on stops deciding who the
+  caller is.
 
 ### Java API changes
 
@@ -43,10 +76,37 @@
 - `CheckedTool` is a class that the check creates and a caller reads,
   where it was a record with a public constructor of twelve parameters.
   Its accessors keep their names.
-
 - `CheckSettings` is built from `CheckSettings.defaults()` and its
   `with...` methods, or through its canonical constructor. The two shorter
   constructors, of three and four parameters, are removed.
+- `ToolGeneration.DYNAMIC_TWO_STEP` is removed, so setting
+  `gatool.dev.experimental.generate-tools` to `dynamic-two-step` now fails
+  Spring Boot's own property binding instead of GATool's message.
+- `ReachableTypes`, `TypeDetail`, `SchemaPaths`, `SdlDescriptions`, and
+  `SdlWriter` moved from the public package `io.gatool.core.search` into
+  the internal package `io.gatool.core.internal.search`, leaving
+  `SchemaSearch`, `SearchHit`, `CorpusEntry`, `CorpusFormat`, and
+  `SchemaCorpus` as the package's public types.
+- `CheckedTool` gained five values: `title`, `outputSchema`, `readOnly`,
+  `openWorld`, and `scopes`.
+- The overloads of `OperationFileCheck.check` and
+  `OperationFilesAssert.assertValid` that assumed default `CheckSettings`
+  are gone. Every caller now passes a `CheckSettings` explicitly.
+- `GAToolCatalog.schema()` and its builder method `Builder.schema(...)`
+  are gone; GATool built every tool without reading the value a caller
+  supplied there.
+- The bean methods `gaToolGraphQlExecutor`, `gaToolGraphQlResultWriter`,
+  `gaToolCallRunner`, `gaToolNamingStrategy`, `gaToolCatalog`,
+  `gaToolRateLimiter`, `mcpServerJsonMapper`, and `gaToolCallbacks` are
+  now package-private. An application replaces the behaviour each one
+  builds by publishing its own bean of the same published type.
+- The seven classes GATool registers through `spring.factories` are now
+  package-private, `OperationFileProblemsException` is now `final` with a
+  package-private constructor, and `SpringAiMcpKeys` moved into an
+  internal package.
+- `CONTRIBUTING.md` and the Javadoc of `GraphQlExecutionRequest` now
+  state the rule for a public record that grows: it keeps the constructor
+  of the release before it compiling for at least one minor release.
 
 ### Properties
 
@@ -57,6 +117,19 @@
 - `gatool.dev.experimental.dynamic-operations.search-token-budget` is
   2000 by default, where it was 500, so one `searchSchema` call returns
   more of the ranked fields and a field with a long description fits.
+- `gatool.mcp.sessions.max-count-per-caller` now defaults to 100 instead
+  of off. A value at or below 0 still turns the cap off, and startup
+  warns when a secured stateful server runs without an effective cap.
+- `gatool.api.max-response-size` now defaults to 1MB instead of 10MB, and
+  the new property `gatool.api.schema.max-size`, 10MB by default, bounds
+  the schema GATool fetches from a registry URL.
+- Where an application leaves `spring.http.clients.read-timeout` unset,
+  the read deadline GATool supplies drops from 20 to 15 seconds, so the
+  model reads GATool's own timeout sentence before the MCP client's
+  20-second default gives up.
+- The MCP JSON mapper now reads a decimal argument as a `BigDecimal`, so
+  an MCP tool call carries every digit the model sent, the way an
+  in-process call already does.
 
 ### Fixes
 
@@ -122,85 +195,6 @@
   proxy, where they named `trusted-proxies`. The default of
   `internal-proxies` covers every private address range, and
   `trusted-proxies` adds to it.
-
-## 0.1.0
-
-This is the first release of GATool. The README section
-[What this release does](README.md#what-this-release-does) covers what it
-provides.
-
-### Tool contract changes
-
-- Startup now stops where an MCP server bean was built without immediate
-  execution, because GATool reads who is calling from the request thread.
-- At call time, GATool now refuses any MCP tool call that arrives on a
-  thread other than the one serving the HTTP request, and records the
-  outcome as `off-request-thread`. A call refused for a missing scope
-  records `insufficient-scope`.
-- The same refusal now covers a per-caller credential read under a
-  security context strategy that a pooled thread inherits, such as Spring
-  Security's inheritable thread-local strategy.
-- For a 408 or a 425 answer to a mutation, the model now reads a shorter
-  sentence: read the current state before writing again. A 5xx or a 429
-  still tells the model the first call may already have applied.
-- A schema GATool fetches from a registry can still stop a restart if it
-  drifts from the operation files; the build check run against the
-  registry's schema is the place to catch that drift first.
-- The new README section "Compatibility" states what a patch release
-  keeps and what a minor release may change, until GATool reaches 1.0.
-- Planned for the release after 0.1.0: carrying the caller inside the MCP
-  transport context, so the thread a call runs on stops deciding who the
-  caller is.
-
-### Java API changes
-
-- `ToolGeneration.DYNAMIC_TWO_STEP` is removed, so setting
-  `gatool.dev.experimental.generate-tools` to `dynamic-two-step` now fails
-  Spring Boot's own property binding instead of GATool's message.
-- `ReachableTypes`, `TypeDetail`, `SchemaPaths`, `SdlDescriptions`, and
-  `SdlWriter` moved from the public package `io.gatool.core.search` into
-  the internal package `io.gatool.core.internal.search`, leaving
-  `SchemaSearch`, `SearchHit`, `CorpusEntry`, `CorpusFormat`, and
-  `SchemaCorpus` as the package's public types.
-- `CheckedTool` gained five values: `title`, `outputSchema`, `readOnly`,
-  `openWorld`, and `scopes`.
-- The overloads of `OperationFileCheck.check` and
-  `OperationFilesAssert.assertValid` that assumed default `CheckSettings`
-  are gone. Every caller now passes a `CheckSettings` explicitly.
-- `GAToolCatalog.schema()` and its builder method `Builder.schema(...)`
-  are gone; GATool built every tool without reading the value a caller
-  supplied there.
-- The bean methods `gaToolGraphQlExecutor`, `gaToolGraphQlResultWriter`,
-  `gaToolCallRunner`, `gaToolNamingStrategy`, `gaToolCatalog`,
-  `gaToolRateLimiter`, `mcpServerJsonMapper`, and `gaToolCallbacks` are
-  now package-private. An application replaces the behaviour each one
-  builds by publishing its own bean of the same published type.
-- The seven classes GATool registers through `spring.factories` are now
-  package-private, `OperationFileProblemsException` is now `final` with a
-  package-private constructor, and `SpringAiMcpKeys` moved into an
-  internal package.
-- `CONTRIBUTING.md` and the Javadoc of `GraphQlExecutionRequest` now
-  state the rule for a public record that grows: it keeps the constructor
-  of the release before it compiling for at least one minor release.
-
-### Properties
-
-- `gatool.mcp.sessions.max-count-per-caller` now defaults to 100 instead
-  of off. A value at or below 0 still turns the cap off, and startup
-  warns when a secured stateful server runs without an effective cap.
-- `gatool.api.max-response-size` now defaults to 1MB instead of 10MB, and
-  the new property `gatool.api.schema.max-size`, 10MB by default, bounds
-  the schema GATool fetches from a registry URL.
-- Where an application leaves `spring.http.clients.read-timeout` unset,
-  the read deadline GATool supplies drops from 20 to 15 seconds, so the
-  model reads GATool's own timeout sentence before the MCP client's
-  20-second default gives up.
-- The MCP JSON mapper now reads a decimal argument as a `BigDecimal`, so
-  an MCP tool call carries every digit the model sent, the way an
-  in-process call already does.
-
-### Fixes
-
 - Startup now warns when the running application uses a Spring Boot or a
   Spring AI release outside the lines this release tested, Spring Boot
   4.1.x and Spring AI 2.0.x from 2.0.1, naming the tested lines and the

@@ -158,8 +158,8 @@ needs the same three reasons, and it follows the same steps:
    how an application sets that version under the Boot parent, under the
    imported BOM and under Gradle.
 
-`RELEASING.md` checks at each release whether a pin can go. Removing one takes
-out the property, the managed entries and the paragraphs of step 4 together.
+Removing a pin takes out the property, the managed entries and the paragraphs
+of step 4 together.
 
 ## Style
 
