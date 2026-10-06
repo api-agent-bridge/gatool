@@ -86,7 +86,7 @@
         <nullaway.version>0.14.1</nullaway.version>
         <graphql-java-extended-scalars.version>24.0</graphql-java-extended-scalars.version>
         <bucket4j.version>8.19.0</bucket4j.version>
-        <lucene.version>10.3.2</lucene.version>
+        <lucene.version>10.5.1</lucene.version>
         <jacoco.version>0.8.14</jacoco.version>
         <!-- Sonar reads one file: the aggregate, which is the only report that counts
              tests/skeleton's coverage of the three auto-configuration modules. -->
