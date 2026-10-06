@@ -49,8 +49,8 @@ Add the starter for the Model Context Protocol (MCP):
 </dependency>
 ```
 
-Put the query above in `src/main/resources/gatool/mcp/TopRatedMovies.graphql`, and
-point the application at your API:
+Put the query above in `src/main/resources/gatool/mcp/TopRatedMovies.graphql`,
+and point the application at your API:
 
 ```yaml
 gatool:
@@ -91,7 +91,7 @@ authenticates for it. The section on securing the endpoint below shows the
 other way. Add the resource server starter, name the issuer, and leave the
 unauthenticated switch off.
 
-Start the application. A model that connects to `/mcp` reads one tool. The
+Start the application. A client that connects to `/mcp` reads one tool. The
 entry is shortened here. The one on the wire also carries a `title`, the
 `$schema` and the `$id` of the input schema, and the hints `destructiveHint`
 and `idempotentHint`.
@@ -170,6 +170,7 @@ Spring AI's own `spring.ai.tool` observation covers each call. A refusal
 reaches the model as a plain sentence of text. One example is a credential the
 configured strategy could not supply. An answer arrives as the same GraphQL
 envelope the MCP path returns.
+
 ## How a tool is built
 
 - **One file makes one tool.** An operation file is a `.graphql` file that
@@ -177,9 +178,10 @@ envelope the MCP path returns.
   second operation stops startup. A tool call returns one result. A file that
   holds a subscription, or that uses `@defer` or `@stream`, therefore stops
   startup as well.
+
 - **The name** comes from the operation name through a naming strategy. A
   naming strategy is the rule that turns an operation name into a tool name,
-  and `camelCase` is the default. `@gatool(name: "movies_top_rated")` sets an
+  and `camel-case` is the default. `@gatool(name: "movies_top_rated")` sets an
   explicit name. A `ToolNamingStrategy` bean replaces the strategy. An
   operation written without a name takes its name from the file, so
   `top-rated-movies.graphql` and `TopRatedMovies.graphql` both give
@@ -194,6 +196,7 @@ envelope the MCP path returns.
   its name. An explicit name follows the same rules as a name from a strategy.
   It uses letters, digits, `_` and `-`, with at most 64 characters. It holds
   at least one letter or digit.
+
 - **The description** comes from the comment directly above the operation.
   Without one, it comes from the schema description of the root field the
   operation selects. Startup warns when both are silent. A comment or a schema
@@ -210,6 +213,7 @@ envelope the MCP path returns.
   description string ahead of the operation. GATool refuses that syntax at
   startup, because graphql-java 25.0 predates it. The refusal says so and
   points at the `#` comment lines.
+
 - **The input schema** is the JSON Schema that describes the arguments of a
   tool. It comes from the variables, with their types, their descriptions and
   their defaults. An `ID` argument accepts a string or an integer, which is
@@ -225,26 +229,31 @@ envelope the MCP path returns.
   variable, even when it has a default. Declare it non-null. Section 5.8.5 of
   the September 2025 specification allows that default. graphql-js 17 refuses
   it in that position. GATool follows graphql-js.
+
 - **The title** comes from `@gatool(title: "Top rated movies")`. A blank title
   is refused. A blank title is one that is empty, or one made of spaces.
   Characters that render empty, such as a no-break space or a zero width
   space, count as spaces here.
+
 - **The open world hint** comes from `@gatool(openWorld: true)` or
   `@gatool(openWorld: false)`. It sets `openWorldHint` on the tool definition
   of the Model Context Protocol (MCP). The hint says whether the tool reaches
   an open-ended set of entities. A file that leaves it out publishes the tool
   without the hint.
+
 - **The result** is the `data` and `errors` of the GraphQL response as JSON
   text. GATool writes that text itself. The response-level `extensions` and
   every other top-level key stay out. An error's own `extensions` travel with
   the error. A `294 Partial Success`, or any 2xx status under a JSON content
   type, is read the same way as a `200`. A GraphQL error becomes a tool error
   that the model can read and act on.
+
 - **The hints** `readOnlyHint`, `destructiveHint` and `idempotentHint` are set
   on every tool. A query publishes `readOnlyHint` and `idempotentHint` as true
   and `destructiveHint` as false. A mutation publishes the opposite three
   values. A mutation file becomes a tool the same way a query file does. The
   operation type tells a client which it is.
+
 - **The output schema** is the JSON Schema that describes the result of a
   tool. It is off by default. `gatool.results.publish-output-schema: true`
   turns it on for every tool. `@gatool(outputSchema: true)` or
@@ -352,8 +361,8 @@ carry text, so the output schema does not change what a `ChatClient` receives.
 
 The errors-as-data pattern puts an expected failure, such as a declined card,
 into the result type. The failure is a union member beside the success type. A
-union or interface position publishes one branch per member its type
-conditions cover. `__typename` is the field that names the concrete type of an object in
+union or interface position publishes one branch per member its type conditions
+cover. `__typename` is the field that names the concrete type of an object in
 the response. When the operation selects it, each branch pins its value. This
 operation:
 
@@ -389,13 +398,13 @@ its own. A fragment on `Node` at a `node` position therefore publishes one
 shape, and startup stays quiet. One output schema holds at most 500 object
 shapes. A position past that bound is published as an open object. A result
 there still conforms, and startup names the position.
+
 ### Custom scalars
 
 A custom scalar reaches the model as `{}`, the JSON Schema that accepts any
 value. The model then guesses the format and learns it from the API's request
 error. Two things narrow that: a `@specifiedBy` URL that GATool has read, and a
-scalar fragment you write. A scalar fragment is a piece of JSON Schema you
-configure under `gatool.inputs.scalar-schemas`.
+scalar fragment you write.
 
 **A `@specifiedBy` URL GATool has read.** `@specifiedBy` is the directive a
 schema puts on a scalar to point at the specification of its values. GATool has
@@ -445,8 +454,8 @@ whole. The schema travels in every `tools/list` and in every prompt that carries
 the tool, so it has to stay short.
 
 A numeric bound is refused, because Anthropic's strict tool use answers
-`minimum` with HTTP 400: `For 'integer' type, properties maximum, minimum are not
-supported`. `oneOf` is refused the same way. State a bound in `description`.
+`minimum` with HTTP 400: `For 'integer' type, properties maximum, minimum are
+not supported`. `oneOf` is refused the same way. State a bound in `description`.
 Anthropic's own SDKs do the same.
 
 Three of the six keywords assert, so a scalar fragment can refuse a call before
@@ -643,15 +652,15 @@ indents each field, so a deeply nested document gains whitespace the file did
 not hold. The tool is served either way. To get under the limit, select less or
 split the operation.
 
-**What the model writes.** `executeGraphql` is one of the dynamic tools.
-`gatool.dev.experimental.generate-tools` set to `dynamic-three-step` enables
-them, and "Getting started without writing operation files" describes them. A
-document the model writes for `executeGraphql` is read under graphql-java's limits for a request,
-nesting included. It is also read under three limits you set: `max-depth`,
-`max-fields` and `max-aliases` under
+**What the model writes.** `executeGraphql` is one of the dynamic tools,
+described under "Getting started without writing operation files". A document
+the model writes for `executeGraphql` is read under graphql-java's limits for a
+request, nesting included. It is also read under three limits you set:
+`max-depth`, `max-fields` and `max-aliases` under
 `gatool.dev.experimental.dynamic-operations`. They protect the API from a
 document that reached it without review, so set them at or below the limits of
 the API.
+
 ### Reading the schema from a registry
 
 `gatool.api.schema.location` is a Spring `Resource`. The value decides where
@@ -674,40 +683,39 @@ gatool:
       header-value: ${HIVE_CDN_KEY}
 ```
 
-The key stays out of every log line. Startup names the URL without its
-userinfo and query. A secret read from a file often ends in a line break. A
-value holding a line break stops startup, and the message names the property.
-A header name outside RFC 9110's token characters stops startup the same way.
-A space inside the value, as in `Bearer <key>`, is accepted. GATool follows up
-to five redirects itself. It sends the key to the configured origin alone. A
-`Location` on the same scheme, host and port gets the key. Any other host is
-fetched without it. The pre-signed storage URL that Hive's CDN answers with is
-one example. A redirect loop or a sixth hop stops startup, and the message
-names the URL. `spring.http.clients.redirects` does not apply to this request.
+The key stays out of every log line. Startup names the URL without its userinfo
+and query. A secret read from a file often ends in a line break. A value holding
+a line break stops startup, and the message names the property. A header name
+outside RFC 9110's token characters stops startup the same way. A space inside
+the value, as in `Bearer <key>`, is accepted. GATool follows up to five
+redirects itself. It sends the key to the configured origin alone. A `Location`
+on the same scheme, host and port gets the key. Any other host is fetched
+without it. The pre-signed storage URL that Hive's CDN answers with is one
+example. A redirect loop or a sixth hop stops startup, and the message names the
+URL. `spring.http.clients.redirects` does not apply to this request.
 `gatool.api.schema.max-size` bounds the body, at 10MB by default. This bound is
-separate from the response cap of a tool call, `gatool.api.max-response-size`.
-A schema larger than that cap is therefore fetched, while the cap stays where
-the deployment set it. A schema above the bound stops startup, and the message
-names the property. The application may leave
-`spring.http.clients.connect-timeout` or `read-timeout` unset. GATool then
+separate from one of the two response caps of a tool call,
+`gatool.api.max-response-size`. A schema larger than that cap is therefore
+fetched, while the cap stays where the deployment set it. A schema above the
+bound stops startup, and the message names the property. The application may
+leave `spring.http.clients.connect-timeout` or `read-timeout` unset. GATool then
 fills the missing one: 3 seconds to connect, 15 seconds for an answer. Startup
-says so at INFO, as it does for the API.
-Hive's CDN answers with an `ETag`. GATool keeps it on the first line of the
-cached copy under `gatool.api.schema.cache-directory`. The default is
-`schema`, inside a folder named `gatool-` and the account the JVM runs as,
-under the JVM's temporary directory (`java.io.tmpdir`). GATool writes the copy
-only after every operation file has validated against the fetched schema. The
-copy therefore holds the last schema that validated. A fetch that breaks an
-operation stops startup and leaves the copy unchanged. The next startup sends
-`If-None-Match`. A `304` reuses the copy. A registry that cannot be reached,
-or that answers `5xx`, starts the application on the copy. A warning then
-names the copy's age. A `4xx` such as `401` stops startup even with a copy on
-disk. The message says that the server answered `401 UNAUTHORIZED`. Spring Boot's
-failure analysis adds the property name, `gatool.api.schema.location`. The
-directory is configurable. A team that wants the copy to outlive the temporary
-directory sets the property to a path of its own. A persistent volume is one
-such path. A blank value fetches at every startup and stops when the fetch
-fails.
+says so at INFO, as it does for the API. Hive's CDN answers with an `ETag`.
+GATool keeps it on the first line of the cached copy under
+`gatool.api.schema.cache-directory`. The default is `schema`, inside a folder
+named `gatool-` and the account the JVM runs as, under the JVM's temporary
+directory (`java.io.tmpdir`). GATool writes the copy only after every operation
+file has validated against the fetched schema. The copy therefore holds the last
+schema that validated. A fetch that breaks an operation stops startup and leaves
+the copy unchanged. The next startup sends `If-None-Match`. A `304` reuses the
+copy. A registry that cannot be reached, or that answers `5xx`, starts the
+application on the copy. A warning then names the copy's age. A `4xx` such as
+`401` stops startup even with a copy on disk. The message says that the server
+answered `401 UNAUTHORIZED`. Spring Boot's failure analysis adds the property
+name, `gatool.api.schema.location`. The directory is configurable. A team that
+wants the copy to outlive the temporary directory sets the property to a path of
+its own. A persistent volume is one such path. A blank value fetches at every
+startup and stops when the fetch fails.
 
 **The default folder is checked before it is used.** Every account on a Linux
 host shares the temporary directory. Another account could create GATool's
@@ -821,23 +829,23 @@ jars are also 6.3 MB together (lucene-core 4.6 MB, lucene-analysis-common
 </dependency>
 ```
 
-GATool builds against 10.3.2. Startup stops and names each missing jar when
-the dynamic tools are on and one of the two is absent. The lucene-core jar
-holds the index. The lucene-analysis-common jar splits an identifier such as
-`topRatedMovies` into words and stems them. The split lets a question in plain words find a
-field on a schema without descriptions. An application that publishes a
-`SchemaSearch` bean of its own ranks with that bean, and both jars stay out of
-its build. The bean builds its entries with `SchemaCorpus.of`, from a schema
-the application reads on its own. `GAToolCatalog` holds the tools alone,
-without the schema. The catalog depends on the search bean. A `SchemaSearch`
-bean that injects the catalog therefore makes a cycle, which Spring reports at
-startup. An operation file whose tool would take one of the three names stops
-startup. The message names the file and the property. Give that operation
-another name with `@gatool(name:)`. A search hit on a field an interface
-declares says so. It names an implementation on which to select the field.
-`introspectType` lists an interface's implementations in a trailing comment.
-Its description names the query root. It names the mutation root as well
-while `allow-mutations` is on.
+GATool builds against 10.3.2. Startup stops and names each missing jar when the
+dynamic tools are on and one of the two is absent. The lucene-core jar holds the
+index. The lucene-analysis-common jar splits an identifier such as
+`topRatedMovies` into words and stems them. The split lets a question in plain
+words find a field on a schema without descriptions. An application that
+publishes a `SchemaSearch` bean of its own ranks with that bean, and both jars
+stay out of its build. The bean builds its entries with `SchemaCorpus.of`, from
+a schema the application reads on its own. `GAToolCatalog` holds the tools
+alone, without the schema. The catalog depends on the search bean. A
+`SchemaSearch` bean that injects the catalog therefore makes a cycle, which
+Spring reports at startup. An operation file whose tool would take one of the
+three names stops startup. The message names the file and the property. Give
+that operation another name with `@gatool(name:)`. A search hit on a field an
+interface declares says so. It names an implementation on which to select the
+field. `introspectType` lists an interface's implementations in a trailing
+comment. Its description names the query root. It names the mutation root as
+well while `allow-mutations` is on.
 
 `gatool.dev.experimental.dynamic-operations.include-deprecated-fields=false`
 hides deprecated fields, arguments, enum values and input fields from
@@ -854,6 +862,7 @@ the document's syntax. Argument values, list sizes and resolver cost stay with
 the API's own demand control. The two response caps,
 `gatool.api.max-response-size` and `gatool.results.max-characters`, apply after
 the API computed the result.
+
 ## Configuration
 
 | Property | What it does |
@@ -881,7 +890,7 @@ the API computed the result.
 | `gatool.api.request-limits.max-whitespace-tokens` | Whitespace tokens you expect the API to read of a document, 200,000 by default, counted in the printed document GATool sends. The warning and the value below 1 work as for the characters |
 | `gatool.api.max-response-size` | Largest response GATool reads from the API, 1MB by default. This and `gatool.results.max-characters` are the two response caps. The value decides the heap one call in flight holds, which "Running in a container" sizes. A value in bytes below `gatool.results.max-characters` makes this cap refuse every result the result limit would have allowed. Startup then warns naming both |
 | `gatool.api.schema.max-size` | Largest schema GATool fetches from a URL, 10MB by default. A schema above it stops startup naming the property. The bound is the schema's own. A public schema of a few megabytes is fetched while `gatool.api.max-response-size` stays where the deployment set it |
-| `gatool.mcp.rate-limit.calls-per-minute` | Calls one caller makes to one tool each minute, 60 by default. Once the endpoint is secured, the caller is the token's subject. Where an application's own converter leaves the name blank, the caller is the token's fingerprint, a SHA-256 hash of the bearer token. The session binding, which ties an MCP session to the caller that opened it, uses the same key. While the unauthenticated switch, `gatool.mcp.security.unsafe.allow-mcp-calls-without-authentication`, is on, the caller is the client address. The caller is read through the `SecurityContextHolderStrategy` bean an application declares, so a strategy of the application's own keeps the count per caller. Behind a proxy that address is the proxy's. Set `server.forward-headers-strategy=native` with `server.tomcat.remoteip.internal-proxies` naming the proxy. That replaces a default which covers every private address range. `framework` trusts the forwarded headers every client sends, so a caller could then send a different address on every call and escape the count |
+| `gatool.mcp.rate-limit.calls-per-minute` | Calls one caller makes to one tool each minute, 60 by default. Once the endpoint is secured, the caller is the token's subject. Where an application's own converter leaves the name blank, the caller is the token's fingerprint, a SHA-256 hash of the bearer token. The session binding, which ties an MCP session to the caller that opened it, uses the same key. While the unauthenticated switch is on, the caller is the client address. The caller is read through the `SecurityContextHolderStrategy` bean an application declares, so a strategy of the application's own keeps the count per caller. Behind a proxy that address is the proxy's. Set `server.forward-headers-strategy=native` with `server.tomcat.remoteip.internal-proxies` naming the proxy. That replaces a default which covers every private address range. `framework` trusts the forwarded headers every client sends, so a caller could then send a different address on every call and escape the count |
 | `gatool.mcp.rate-limit.max-tracked-pairs` | Most caller and tool pairs the limiter counts at once, 100,000 by default. Each pair holds a bucket of a few hundred bytes for a minute after its last call. Above the cap, the limiter drops a live pair's bucket for each new one, and that caller starts with a fresh allowance. The Micrometer counter `gatool.rate-limit.evictions` counts those drops. The log warns once a minute naming the property. Set it above the pairs active within a minute |
 | `gatool.mcp.transport.max-request-body-size` | Largest request body the MCP endpoint reads, 256KB by default |
 | `gatool.mcp.transport.allowed-origins` | The origins the endpoint accepts in an `Origin` header, empty by default. A request carrying the header is refused with `403` until its origin is listed. A request without the header is accepted. Each entry is a serialized origin, `scheme://host[:port]`. The scheme and the host are compared case-insensitively, and one trailing slash is ignored. An entry of another shape stops startup. CORS stays the application's. A browser client also needs a `CorsConfigurationSource` bean of the application's own, such as a `UrlBasedCorsConfigurationSource`. That bean is what Spring Security's `cors()` reads |
@@ -935,12 +944,17 @@ call did not run and that a later call may succeed. For any other transport
 failure, the model reads that GATool cannot tell whether the call ran. A
 mutation reads the same account of how far the call got. After a mutation fails
 in any of the three ways, the model is asked to read the current state before
-sending it again. The model's sentence and the operator's line open with
-the same words. The operator reads a WARN line for each such call, query or
-mutation. The line says how far the call got and ends with the cause. The three
-causes are: the tool `could not reach the GraphQL API`, the API
-`took longer to answer than the read timeout of 15 seconds`, or the tool
-`failed in transport while calling the GraphQL API, and the cause does not say whether the call ran`.
+sending it again. The model's sentence and the operator's line open with the
+same words. The operator reads a WARN line for each such call, query or
+mutation. The line says how far the call got and ends with one of three causes:
+
+- the tool `could not reach the GraphQL API`
+
+- the API `took longer to answer than the read timeout of 15 seconds`
+
+- the tool `failed in transport while calling the GraphQL API, and the cause
+  does not say whether the call ran`
+
 The stack is written at DEBUG. In embedded mode, where the GraphQL API runs
 inside the same application through Spring for GraphQL, the call stays in the
 same JVM. This release leaves that call without a deadline.
@@ -958,14 +972,14 @@ GATool builds the request factory of that client from the application's
 `ClientHttpRequestFactoryBuilder` bean and `spring.http.clients.*`. Startup
 names the builder at INFO. The headers and interceptors a `RestClientCustomizer`
 sets reach every request GATool sends. Startup names the customizer beans. A
-request factory the customizer installs stays on the application's own
-clients. GATool keeps its own factory, because that factory carries the
-response cap, `gatool.api.max-response-size`, and leaves redirects unfollowed.
-Without a builder bean, `ClientHttpRequestFactoryBuilder.detect()` prefers
-Apache HttpClient 5 and Jetty over the JDK client. `httpclient5` on the
-classpath, for any reason, moves GATool onto Apache's pool: 5 connections per
-route and 25 in all. We measured about 48 calls per second on that pool,
-against 398 with the JDK client. Startup warns on that builder.
+request factory the customizer installs stays on the application's own clients.
+GATool keeps its own factory, because that factory carries the two response
+caps, `gatool.api.max-response-size`, and leaves redirects unfollowed. Without a
+builder bean, `ClientHttpRequestFactoryBuilder.detect()` prefers Apache
+HttpClient 5 and Jetty over the JDK client. `httpclient5` on the classpath, for
+any reason, moves GATool onto Apache's pool: 5 connections per route and 25 in
+all. We measured about 48 calls per second on that pool, against 398 with the
+JDK client. Startup warns on that builder.
 `spring.http.clients.imperative.factory=jdk` selects the JDK client. A
 `ClientHttpRequestFactoryBuilder` bean built from
 `ClientHttpRequestFactoryBuilder.httpComponents().withConnectionManagerCustomizer(...)`
@@ -1008,7 +1022,7 @@ spring:
         bundle: mtls
 ```
 
-In embedded mode, with the GraphQL API inside the same application, the
+In embedded mode, the
 document runs on the application's `WebGraphQlHandler` bean. Without that bean,
 GATool builds one from the `ExecutionGraphQlService` and the application's
 `WebGraphQlInterceptor` beans. The interceptors therefore apply in every
@@ -1088,10 +1102,10 @@ of that name yourself and GATool leaves it to you.
 Five properties weaken a control the server would otherwise keep: four under
 `gatool.mcp.security.unsafe` and one under `gatool.api.credentials.unsafe`. Each
 is `false` by default. While one of the four is on, GATool logs a warning naming
-it at every startup. The fifth, `gatool.api.credentials.unsafe.forward-client-tokens`,
-warns at every startup while GATool's own credential strategy bean is created.
-An application with an `ApiCredentialStrategy` bean of its own reads an INFO
-line naming that bean.
+it at every startup. The fifth,
+`gatool.api.credentials.unsafe.forward-client-tokens`, warns at every startup on
+which GATool creates its own strategy bean for it. An application with an
+`ApiCredentialStrategy` bean of its own reads an INFO line naming that bean.
 
 | Property | What you give up |
 | --- | --- |
@@ -1105,6 +1119,7 @@ line naming that bean.
 place. They publish more of your API than a folder of trusted documents, the
 operation files checked into your repository, would. They may change in any
 release.
+
 ## Securing the MCP endpoint
 
 The Model Context Protocol (MCP) endpoint is an OAuth 2.1 resource server once
@@ -1132,7 +1147,7 @@ gatool:
       baseline-scopes: mcp:tools
 ```
 
-Startup stops while the issuer, the audience or the baseline scopes is unset,
+Startup stops while any of the three settings above is unset,
 and the message names the property. Startup also stops when Spring Security is
 absent and `gatool.mcp.security.unsafe.allow-mcp-calls-without-authentication`,
 the unauthenticated switch, is off. That message names the starter. The
@@ -1216,11 +1231,12 @@ write it as the token's `aud`, and
 audience check belongs to Spring Boot's decoder, so an application that
 declares a `JwtDecoder` bean of its own owns that check.
 
-Some issuers name an API by an identifier of their own and write that
-identifier as the audience. Microsoft Entra ID gives an API an App ID URI,
+Some issuers name an API by an identifier of their own and write that identifier
+as the audience. Microsoft Entra ID gives an API an App ID URI,
 `api://<client-id>` by default. In a v2.0 access token, the `aud` claim holds
 the client ID. In a v1.0 token, it holds the client ID or the App ID URI.
-[Microsoft's claims reference](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference)
+[Microsoft's claims
+reference](https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference)
 describes both. With such an issuer the two properties take different values.
 `gatool.mcp.security.resource` takes the URL of the endpoint, under `http` or
 `https`. RFC 9728 defines the resource identifier as an `https` URL. Every
@@ -1358,10 +1374,10 @@ Spring AI's worker threads.
 Two shapes get past that last check. A `SecurityContextHolderStrategy` bean of
 an application's own class, and a `ListeningSecurityContextHolderStrategy`
 wrapped around another strategy, cannot be classified. GATool treats them as it
-treats the default. An application that made `RequestContextHolder`
-inheritable gives a child thread a bound request, which is the signal this
-check reads. That is done with `setThreadContextInheritable(true)` on its
-`RequestContextFilter` or `DispatcherServlet`.
+treats the default. An application makes `RequestContextHolder`
+inheritable with `setThreadContextInheritable(true)` on its
+`RequestContextFilter` or `DispatcherServlet`. A child thread then has a bound
+request, which is the signal this check reads.
 
 These shapes are refused as well, and each would otherwise be served:
 
@@ -1370,20 +1386,26 @@ These shapes are refused as well, and each would otherwise be served:
   switch on, the mark then stays off every thread. Every call is refused, and
   startup stays silent about it. With the endpoint secured, startup already
   stops on that set-up.
+
 - A transport of the application's own. It hands the call to another thread
   and carries the security context there itself.
+
 - A call from application code on a thread of its own. In a servlet
   application, a scheduled job may invoke the handler of one of GATool's
   `SyncToolSpecification` beans directly.
+
 - A streamed call in-process. It runs under `MODE_INHERITABLETHREADLOCAL` with
   `spring.reactor.context-propagation=auto`, and propagation restores the
   right caller on Spring AI's worker thread.
+
 - A thread started for the request in-process. The application started it
   under `MODE_INHERITABLETHREADLOCAL`, which is the use that strategy exists
   for. The new thread inherited the right caller.
+
 - An application without a servlet request in-process. The application runs
   under `MODE_INHERITABLETHREADLOCAL`, and a message listener, for example,
   sets the security context itself before it calls a tool.
+
 ### Scopes per tool
 
 An operation file lists every scope its tool needs. An empty list opens the
@@ -1462,17 +1484,17 @@ security chains stay out of the application. With Spring Security on the
 classpath, Spring Boot's default chain secures the application's own paths.
 
 Over stdio the caller is the process that started the server.
-`gatool.mcp.stdio.granted-scopes`, set in the environment, names the scopes
-that process holds. Startup stops while tools require scopes and the list is
-unset. A call to a tool that needs a scope outside the list answers with a tool
-error naming the scope. Console logging is off under stdio, because Spring Boot
-logs to stdout, which is the JSON-RPC channel. `logging.console.enabled=true`
+`gatool.mcp.stdio.granted-scopes`, set in the environment, names the scopes that
+process holds. Startup stops while tools require scopes and the list is unset. A
+call to a tool that needs a scope outside the list answers with a tool error
+naming the scope. Console logging is off under stdio, because Spring Boot logs
+to stdout, which is the JSON-RPC channel. `logging.console.enabled=true`
 corrupts the stream. The log goes to stderr, the stream MCP leaves to a stdio
 server for its logging. A host may capture, forward or ignore it. By default
-stderr carries WARN and above. The lines of a normal start therefore stay out
-of it. `logging.threshold.console` changes that. `INFO` adds the lines of the
-start. `DEBUG`, together with a `logging.level` setting, adds the DEBUG lines
-of that logger. `logging.pattern.console`, `logging.charset.console` and
+stderr carries WARN and above. The lines of a normal start therefore stay out of
+it. `logging.threshold.console` changes that. `INFO` adds the lines of the
+start. `DEBUG`, together with a `logging.level` setting, adds the DEBUG lines of
+that logger. `logging.pattern.console`, `logging.charset.console` and
 `logging.structured.format.console` apply to stderr as they would to the
 console. The log is written without making the server wait. A host that leaves
 stderr unread loses lines once the pipe and the queue behind it are full, and
@@ -1482,18 +1504,18 @@ left about 64 KB unread. They are a direct write to stderr, the log on
 `java.util.logging`, and an application's own Logback or Log4j2 configuration
 that writes to stderr. A host therefore reads stderr, or discards it when an
 operator lowers the levels. GATool counts the lines it drops. The first line
-that gets through again follows a line that holds the count, such as
-`GATool dropped 412 log lines while stderr was not being read`. That line is
-written at WARN under the logger
-`io.gatool.boot.mcp.autoconfigure.LogbackStderrLog`. A threshold above WARN, or
-a level above WARN for that logger, keeps it out. A host that reads again finds
-it ahead of the next line the server writes. Once the server has stopped, the
-line sits at the end of the stream. `logging.file.name` writes the log to a file as well,
-and that file receives every line. `gatool.mcp.stdio.log-to-stderr=false`
-turns the stderr log off. GATool steps back where the application configured
-the log itself. The application does that by setting `logging.console.enabled`,
-by naming a file in `logging.config`, or by bringing a Logback file under a
-name Spring Boot finds, such as `logback-spring.xml`. The stderr log is built on Logback, Spring Boot's
+that gets through again follows a line that holds the count, such as `GATool
+dropped 412 log lines while stderr was not being read`. That line is written at
+WARN under the logger `io.gatool.boot.mcp.autoconfigure.LogbackStderrLog`. A
+threshold above WARN, or a level above WARN for that logger, keeps it out. A
+host that reads again finds it ahead of the next line the server writes. Once
+the server has stopped, the line sits at the end of the stream.
+`logging.file.name` writes the log to a file as well, and that file receives
+every line. `gatool.mcp.stdio.log-to-stderr=false` turns the stderr log off.
+GATool steps back where the application configured the log itself. The
+application does that by setting `logging.console.enabled`, by naming a file in
+`logging.config`, or by bringing a Logback file under a name Spring Boot finds,
+such as `logback-spring.xml`. The stderr log is built on Logback, Spring Boot's
 default. On Log4j2 the console is off as well. It stays off where
 `logging.threshold.console` is set, because Spring Boot's console would write
 the log to stdout. The log is therefore written only in two cases: the
@@ -1503,11 +1525,11 @@ log to stderr. While `logging.file.name`, `logging.file.path` and
 `gatool.mcp.stdio.log-to-stderr=false` keeps that line out. What Log4j2 reports
 about itself, such as a log file it cannot create, is written to stderr. That
 holds at either value of that property, because the listener Spring Boot
-registers for those reports writes to stdout. On `java.util.logging` the log reaches stderr
-through the console handler of the JDK, which Spring Boot leaves on under
-`logging.console.enabled=false`. That handler carries INFO and above, and the
-thread that logs writes it. A host that leaves stderr unread therefore makes
-such a server wait once the pipe is full. While the console stays off, a
+registers for those reports writes to stdout. On `java.util.logging` the log
+reaches stderr through the console handler of the JDK, which Spring Boot leaves
+on under `logging.console.enabled=false`. That handler carries INFO and above,
+and the thread that logs writes it. A host that leaves stderr unread therefore
+makes such a server wait once the pipe is full. While the console stays off, a
 startup failure is still written to stderr. That write bypasses the queue. It
 carries Boot's failure analysis, or the exception's message chain where every
 analyzer passes on it. Beside a full pipe, GATool gives up the report after 2
@@ -1548,25 +1570,26 @@ That suits a local API and an internal one behind a gateway:
   in. So does a space or a tab at the start or the end of the value. That stop
   names `gatool.api.credentials.header-name`, so the secret stays out of the
   message. A space inside the value, as in `Bearer <token>`, is fine.
+
 - `client-credentials` obtains a token for GATool itself through a Spring Boot
   client registration named by `gatool.api.credentials.client-registration-id`.
   The API sees GATool as the caller of every tool. One token is held for the
   application until it expires.
+
 - `token-exchange` hands the caller's token to the issuer with
   `gatool.api.credentials.audience`, `gatool.api.credentials.resource`, or both.
-  The API receives a token issued for itself that still names the real user.
-  The registration's grant type is
+  The API receives a token issued for itself that still names the real user. The
+  registration's grant type is
   `urn:ietf:params:oauth:grant-type:token-exchange`. GATool keeps one exchanged
-  token per inbound token in memory, looked up by a hash of that token. It
-  drops the expired ones each time it saves one, and holds at most ten
-  thousand. Each entry holds the exchanged token's text, so a busy server holds
-  tens of megabytes of tokens at that cap. A caller who steps up to a token
-  with more scopes therefore gets an exchange of its own. The API sees the new
-  scopes on the next call. A call on a thread without the caller's token is
-  one made outside the secured endpoint. It fails as a tool error. The error
-  names the strategy and says the arguments are not the cause. A call under
-  `gatool.api.credentials.unsafe.forward-client-tokens`, the forwarded token,
-  fails the same way. So does a token request the issuer refuses, and that
+  token per inbound token in memory, looked up by a hash of that token. It drops
+  the expired ones each time it saves one, and holds at most ten thousand. Each
+  entry holds the exchanged token's text, so a busy server holds tens of
+  megabytes of tokens at that cap. A caller who steps up to a token with more
+  scopes therefore gets an exchange of its own. The API sees the new scopes on
+  the next call. A call on a thread without the caller's token, which is a call
+  made outside the secured endpoint, fails as a tool error. The error names the
+  strategy and says the arguments are not the cause. A call under the forwarded
+  token fails the same way. So does a token request the issuer refuses, and that
   error carries the issuer's error code. The exchange names the caller's token
   as an access token. RFC 8693 gives that type to a token the receiving
   authorization server issued. The registration's token endpoint therefore has
@@ -1603,8 +1626,7 @@ Startup stops when the starter is missing, when the registration is missing, or
 when the grant type does not match the strategy. The message names the missing
 or wrong item. Token exchange and the forwarded token need an authenticated
 caller. Both therefore stop startup over stdio, and while
-`gatool.mcp.security.unsafe.allow-mcp-calls-without-authentication`, the
-unauthenticated switch, is on. `ApiCredentialStrategy` is a Spring
+the unauthenticated switch is on. `ApiCredentialStrategy` is a Spring
 `ClientHttpRequestInterceptor` under another name. A bean of that type replaces
 every built-in strategy. Use it for an API that authenticates in another way.
 
@@ -1639,6 +1661,7 @@ therefore decides what a model reads as tool text.
   `executeGraphql` is the one tool through which a model writes a document of
   its own. It is one of the dynamic tools, present while
   `gatool.dev.experimental.generate-tools` is `dynamic-three-step`.
+
 - A result is written again as `data` and `errors`. Its strings stay as the API
   returned them. GATool replaces the value of
   `gatool.api.credentials.header-value` wherever a result or an error text
@@ -1648,13 +1671,17 @@ therefore decides what a model reads as tool text.
   header alone. An API or a proxy that echoes the request into an error then
   hands the value to the model. Such a strategy therefore needs an API that
   keeps request headers out of its errors.
+
 - `gatool.api.max-response-size` bounds what GATool reads from the API.
   `gatool.results.max-characters` bounds the text one call returns to a model.
+
 - The default folder of the schema cache is checked before it is used.
   "Reading the schema from a registry" describes the check.
+
 - On the MCP endpoint a call needs the scopes its operation file lists. The
   token of a caller therefore bounds the tools an injected instruction can
   reach.
+
 - A mutation is a tool like a query. Every tool publishes `readOnlyHint` and
   `destructiveHint`. A query carries `readOnlyHint: true`, and a mutation
   carries `destructiveHint: true`, so a client can tell the two apart.
@@ -1666,13 +1693,16 @@ therefore decides what a model reads as tool text.
   tool returns as untrusted input. Scopes bound what such text can cause. Give
   the tools that write a scope of their own. Leave that scope out of the token
   of a caller whose model reads user-written text.
+
 - An error's `extensions` reach the model as the API wrote them. Some APIs put
   an exception class or the lines of a stack trace there. The configuration of
   the API is where a team switches that off.
+
 - GATool does not ask a person before a mutation runs. Over MCP that question
   belongs to the client. MCP asks a client to keep a person in the loop and to
   confirm a sensitive operation. The hints above tell a client which tools
   write.
+
 - In process, Spring AI's `ToolCallingManager` calls the callback that a
   model's response names. A mutation in the in-process folder,
   `gatool/in-process/`, therefore runs as soon as the model asks for it. Spring
@@ -1681,6 +1711,7 @@ therefore decides what a model reads as tool text.
   tool with `readOnly()`. An application that wants a person to agree first
   wraps the callbacks of those tools in a `ToolCallback` of its own. That
   callback asks the person, then hands the call to GATool's callback.
+
 ## Checking your tools in CI
 
 The starter `gatool-spring-boot-starter-test` brings two assertions. Add it in
@@ -1734,7 +1765,7 @@ folder therefore cannot pass with zero tools. The CI check follows a symbolic
 link to a folder. It lists the tools in path order, the way startup reads a
 location. The fourth argument is a `CheckSettings`. It carries the naming
 strategy, the output schema switch and the scalar fragments the application
-configures. A scalar fragment is the JSON Schema piece configured under
+configures. A scalar fragment is a piece of JSON Schema configured under
 `scalar-schemas`. The CI check then runs under the same settings startup uses.
 An application on every default passes `CheckSettings.defaults()`. One with
 `gatool.naming.strategy: snake-case` passes
@@ -1876,8 +1907,8 @@ Javadoc leaves those packages out.
 the rest of those packages. Their contract is the properties themselves: the
 names, types and defaults under `gatool.*`. The rules above cover those. Their
 getters and setters exist for Spring Boot's binder and may change in any
-release. Spring Boot states the same rule for
-[its own properties classes](https://docs.spring.io/spring-boot/reference/features/external-config.html#features.external-config.typesafe-configuration-properties.java-bean-binding).
+release. Spring Boot states the same rule for [its own properties
+classes](https://docs.spring.io/spring-boot/reference/features/external-config.html#features.external-config.typesafe-configuration-properties.java-bean-binding).
 
 An application replaces a part of GATool by publishing a bean of its type:
 
@@ -1916,18 +1947,18 @@ Java 21 and Java 25, and the release build runs on Java 21.
 image. The starters ship without runtime hints for the operation folders. With
 `gatool.dev.experimental.generate-tools` set to `dynamic-three-step`, which
 generates the dynamic tools, startup stops inside a native image and names the
-property. Spring Boot documents a faster start on the JVM under
-[AOT Cache and CDS](https://docs.spring.io/spring-boot/reference/packaging/aot-cache.html).
+property. Spring Boot documents a faster start on the JVM under [AOT Cache and
+CDS](https://docs.spring.io/spring-boot/reference/packaging/aot-cache.html).
 That page covers the AOT cache on Java 25 and class data sharing on Java 21.
 
-**Tomcat's version comes from your build.** The MCP starter brings Tomcat through
-Spring AI's WebMVC server starter. It leaves the Tomcat version to the Spring
-Boot release your application builds on. An application on Spring Boot 4.1.1
-therefore runs Tomcat 11.0.24. Three advisories affect that version:
-GHSA-9xv2-5v5q-p794 in the DIGEST authenticator, GHSA-h3x4-894j-xpx5 in the
-FORM authenticator, and GHSA-gcx9-497g-6cp6 in access control. Tomcat 11.0.25
-fixes all three. GATool's own build and tests run on Tomcat 11.0.26. The SBOM
-of a release lists 11.0.26, because it records what GATool was built with. Your
+**Tomcat's version comes from your build.** The MCP starter brings Tomcat
+through Spring AI's WebMVC server starter. It leaves the Tomcat version to the
+Spring Boot release your application builds on. An application on Spring Boot
+4.1.1 therefore runs Tomcat 11.0.24. Three advisories affect that version:
+GHSA-9xv2-5v5q-p794 in the DIGEST authenticator, GHSA-h3x4-894j-xpx5 in the FORM
+authenticator, and GHSA-gcx9-497g-6cp6 in access control. Tomcat 11.0.25 fixes
+all three. GATool's own build and tests run on Tomcat 11.0.26. The SBOM of a
+release lists 11.0.26, because it records what GATool was built with. Your
 application's dependency tree shows the version it runs:
 
 ```bash
@@ -1982,22 +2013,22 @@ The `Origin` check runs before the body is read. So does the answer to an HTTP
 method the transport does not route. Those methods are `PUT` on both transports
 and `DELETE` on the stateless one. The answer is `405`, with an `Allow` header
 and a JSON-RPC error. The compliance filter passes a request without
-`MCP-Protocol-Version` through, and the SDK serves it at a revision this
-release supports. The specification says the server should assume 2025-03-26.
-That revision requires JSON-RPC batches, which this release cannot read, so
-assuming it would refuse every such call. An explicit `2025-03-26` header is
-refused with `400`, unless `gatool.mcp.security.unsafe.allow-superseded-mcp-revisions`
-adds that revision back. A `tools/call` that names a tool outside printable
-ASCII is refused as well. The refusal travels inside a `200`, so that the
-client keeps its session. Such a name could otherwise reach a challenge header.
-The scope check and the server therefore always read the same message.
+`MCP-Protocol-Version` through, and the SDK serves it at a revision this release
+supports. The specification says the server should assume 2025-03-26. That
+revision requires JSON-RPC batches, which this release cannot read, so assuming
+it would refuse every such call. An explicit `2025-03-26` header is refused with
+`400`, unless `gatool.mcp.security.unsafe.allow-superseded-mcp-revisions` adds
+that revision back. A `tools/call` that names a tool outside printable ASCII is
+refused as well. The refusal travels inside a `200`, so that the client keeps
+its session. Such a name could otherwise reach a challenge header. The scope
+check and the server therefore always read the same message.
 
 The current MCP revision is
 [2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/changelog).
 It removes the `initialize` handshake and sessions, and it requires
-`server/discover`. This release does not implement it. In that revision's
-terms, GATool is a legacy server. The revision's
-[compatibility matrix](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#compatibility-matrix)
+`server/discover`. This release does not implement it. In that revision's terms,
+GATool is a legacy server. The revision's [compatibility
+matrix](https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#compatibility-matrix)
 gives the outcome for each client. A client that supports both revisions falls
 back to `initialize` and works. GATool answers an `initialize` that asks for
 `2026-07-28` with `2025-11-25`. It answers any other request carrying that
@@ -2033,12 +2064,12 @@ is the only place where GATool could add such a rule. A rule in the filter
 would apply over HTTP alone, while GATool serves stdio as well. A client that
 sends a cursor reads every tool either way.
 
-Every build runs the official
-[MCP conformance suite](https://www.npmjs.com/package/@modelcontextprotocol/conformance),
-version 0.2.0-alpha.11, against a fixture application. It runs with
-`--requirements 2025-11-25`, once in stateless mode and once in stateful mode.
-This release claims the tool contract and the transport rules. These scenarios
-pass in both modes:
+Every build runs the official [MCP conformance
+suite](https://www.npmjs.com/package/@modelcontextprotocol/conformance), version
+0.2.0-alpha.11, against a fixture application. It runs with `--requirements
+2025-11-25`, once in stateless mode and once in stateful mode. This release
+claims the tool contract and the transport rules. These scenarios pass in both
+modes:
 
 `server-initialize`, `ping`, `tools-list`, `tools-call-simple-text`,
 `tools-call-image`, `tools-call-audio`, `tools-call-embedded-resource`,
@@ -2084,9 +2115,9 @@ other caller with `503`. Authentication bounds who may do it and makes the
 denial attributable. One authenticated caller can still fill the cap. Set
 `gatool.mcp.sessions.max-count-per-caller` to bound what one caller takes. A
 caller past their own cap reads `429` with `Retry-After` and the wait, the way
-the rate limiter answers. The server cap keeps answering `503`, because that
-cap is about the server. The per-caller cap defaults to 100, a tenth of the
-server cap. `0` turns it off. A deployment whose workers share one service
+the rate limiter answers. The server cap keeps answering `503`, because that cap
+is about the server. The per-caller cap defaults to 100, a tenth of the server
+cap. Zero or below turns it off. A deployment whose workers share one service
 principal sets it to the number of sessions those workers hold. A secured
 stateful server may leave the per-caller cap off, or set it at or above
 `gatool.mcp.sessions.max-count`. Either setting leaves one caller free to fill
