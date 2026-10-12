@@ -31,11 +31,13 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.source.InvalidConfigurationPropertyValueException;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.env.Environment;
 
 import io.gatool.boot.GAToolCatalog;
 import io.gatool.boot.autoconfigure.GAToolAutoConfiguration;
+import io.gatool.boot.autoconfigure.GAToolProperties;
 import io.gatool.boot.inprocess.GAToolCallbacks;
 import io.gatool.boot.inprocess.internal.GAToolCallbackFactory;
 import io.gatool.core.model.GATool;
@@ -96,6 +98,8 @@ public final class GAToolInProcessAutoConfiguration {
 	 * uses Spring AI's public {@code ToolUtils.getDuplicateToolNames}, which is the
 	 * method Spring AI's own duplicate check calls.
 	 * @param catalog the configuration and tool catalog that both exposure types share
+	 * @param properties carries the property that lets a tool marked elicit run without
+	 * asking
 	 * @param applicationCallbacks the {@code ToolCallback} beans the application
 	 * declares, which stay out of GATool's own catalog
 	 * @param applicationProviders the {@code ToolCallbackProvider} beans it declares,
@@ -105,12 +109,39 @@ public final class GAToolInProcessAutoConfiguration {
 	 */
 	@Bean
 	@ConditionalOnMissingBean
-	GAToolCallbacks gaToolCallbacks(GAToolCatalog catalog, ObjectProvider<ToolCallback> applicationCallbacks,
+	GAToolCallbacks gaToolCallbacks(GAToolCatalog catalog, GAToolProperties properties,
+			ObjectProvider<ToolCallback> applicationCallbacks,
 			ObjectProvider<ToolCallbackProvider> applicationProviders, Environment environment) {
+		stopWhereToolsElicit(catalog, properties);
 		List<ToolCallback> declared = new ArrayList<>(applicationCallbacks.orderedStream().toList());
 		applicationProviders.orderedStream().forEach((provider) -> declared.addAll(toolCallbacksOf(provider)));
 		stopOnClashingNames(catalog, declared, environment);
 		return new GAToolCallbacks(catalog);
+	}
+
+	// An in-process tool answers a ChatClient in the same JVM, and that ChatClient cannot
+	// ask a user. The MCP starter asks on a stateful server; here the tool either stops
+	// startup or, under the ignore property, runs without asking and startup says so.
+	private static void stopWhereToolsElicit(GAToolCatalog catalog, GAToolProperties properties) {
+		List<String> asking = catalog.inProcessTools()
+			.stream()
+			.filter((tool) -> tool.elicit() != null)
+			.map(GATool::name)
+			.toList();
+		if (asking.isEmpty()) {
+			return;
+		}
+		if (properties.getElicitation().isIgnoreWhereUnsupported()) {
+			logger.warn("gatool.elicitation.ignore-where-unsupported is true, so these in-process tools run without "
+					+ "asking the user: " + String.join(", ", asking) + ".");
+			return;
+		}
+		throw new InvalidConfigurationPropertyValueException("gatool.elicitation.ignore-where-unsupported", false,
+				asking.size() + ((asking.size() == 1) ? " in-process tool asks" : " in-process tools ask")
+						+ " the user before each call (" + String.join(", ", asking)
+						+ "), and an in-process tool answers a ChatClient in the same JVM, which cannot ask. Serve "
+						+ "the tool through the MCP starter on the stateful Streamable HTTP transport, or set "
+						+ "gatool.elicitation.ignore-where-unsupported=true to serve it without asking.");
 	}
 
 	// Fails startup where two in-process tool names clash, comparing the application's
