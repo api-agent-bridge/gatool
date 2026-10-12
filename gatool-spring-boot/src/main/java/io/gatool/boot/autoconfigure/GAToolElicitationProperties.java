@@ -53,8 +53,8 @@ public class GAToolElicitationProperties {
 	/**
 	 * Whether a deployment that cannot ask the user, which is the stateless server, the
 	 * in-process starter, and stdio while gatool.mcp.stdio.elicitation is false, starts
-	 * with the tools marked elicit running without asking. Startup stops naming those
-	 * tools while this is false.
+	 * with the tools marked elicit running without asking. While this is false, startup
+	 * fails and names those tools.
 	 */
 	private boolean ignoreWhereUnsupported;
 
