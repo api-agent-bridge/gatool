@@ -16,27 +16,52 @@
 
 package io.gatool.tests.skeleton;
 
+import java.util.List;
+import java.util.Map;
+
+import io.modelcontextprotocol.common.McpTransportContext;
+import io.modelcontextprotocol.server.McpStatelessServerFeatures;
+import io.modelcontextprotocol.server.McpSyncServer;
+import io.modelcontextprotocol.spec.McpSchema;
+import io.modelcontextprotocol.spec.McpServerSession;
+import io.modelcontextprotocol.spec.McpServerTransportProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.ai.mcp.customizer.McpSyncServerCustomizer;
+import org.springframework.ai.mcp.server.common.autoconfigure.McpServerAutoConfiguration;
 import org.springframework.ai.mcp.server.common.autoconfigure.McpServerJsonMapperAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.context.properties.source.InvalidConfigurationPropertyValueException;
 import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfiguration;
 import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
+import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.core.NestedExceptionUtils;
+import org.springframework.core.ResolvableType;
+import reactor.core.publisher.Mono;
 
 import io.gatool.boot.autoconfigure.GAToolAutoConfiguration;
 import io.gatool.boot.mcp.autoconfigure.GAToolMcpAutoConfiguration;
+import io.gatool.boot.mcp.autoconfigure.McpSecurityException;
+import io.gatool.boot.mcp.internal.server.ImmediateExecution;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A tool marked elicit on a deployment that cannot ask: startup stops naming the tool and
- * the fix, the ignore property lets it start without asking, and the stdio property turns
- * the channel on.
+ * A tool marked elicit on a deployment that cannot ask: startup fails and names the tool
+ * and the fix, and the ignore property lets it start and run without asking. The stdio
+ * property turns the channel on, and the startup check then requires the stdio server to
+ * run each tool call off the thread that reads stdin, where the user's answer arrives.
+ *
+ * <p>
+ * The tests of that check run with Spring AI's server bean, so the check reads the
+ * setting off a real server. A provider stands in for the SDK's stdio provider, which
+ * reads the standard input of the process it runs in.
  */
 @ExtendWith(OutputCaptureExtension.class)
 class McpElicitStartupTests {
@@ -47,11 +72,23 @@ class McpElicitStartupTests {
 			"gatool.in-process.operations.locations=optional:classpath*:gatool/none/",
 			"gatool.mcp.security.unsafe.allow-mcp-calls-without-authentication=true" };
 
+	private static final ResolvableType STATELESS_TOOL_SPECIFICATIONS = ResolvableType.forClassWithGenerics(List.class,
+			McpStatelessServerFeatures.SyncToolSpecification.class);
+
 	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
 		.withConfiguration(AutoConfigurations.of(HttpClientAutoConfiguration.class, RestClientAutoConfiguration.class,
 				GAToolAutoConfiguration.class, McpServerJsonMapperAutoConfiguration.class,
 				GAToolMcpAutoConfiguration.class))
 		.withPropertyValues(PROPERTIES);
+
+	private final ApplicationContextRunner stdioServer = new ApplicationContextRunner()
+		.withConfiguration(AutoConfigurations.of(HttpClientAutoConfiguration.class, RestClientAutoConfiguration.class,
+				GAToolAutoConfiguration.class, McpServerJsonMapperAutoConfiguration.class,
+				McpServerAutoConfiguration.class, GAToolMcpAutoConfiguration.class))
+		.withPropertyValues(PROPERTIES)
+		.withPropertyValues("spring.application.name=movies", "spring.ai.mcp.server.protocol=STREAMABLE",
+				"spring.ai.mcp.server.stdio=true")
+		.withUserConfiguration(StandInStdioProviderConfiguration.class);
 
 	@Test
 	void startup_statelessServerWithAnElicitTool_shouldStopNamingTheToolAndTheFix() {
@@ -79,6 +116,22 @@ class McpElicitStartupTests {
 	}
 
 	@Test
+	void callTool_statelessServerUnderTheIgnoreProperty_shouldRunTheOperationWithoutAsking() {
+		this.contextRunner.withPropertyValues("spring.ai.mcp.server.protocol=STATELESS",
+				"gatool.elicitation.ignore-where-unsupported=true", "gatool.api.url=" + MoviesApiServer.graphQlUrl())
+			.run((context) -> {
+				int before = MoviesApiServer.graphQlCalls();
+
+				McpSchema.CallToolResult result = statelessSpecification(context, "topRatedMovies").callHandler()
+					.apply(McpTransportContext.EMPTY,
+							McpSchema.CallToolRequest.builder("topRatedMovies").arguments(Map.of("first", 1)).build());
+
+				assertThat(result.isError()).as(((McpSchema.TextContent) result.content().getFirst()).text()).isFalse();
+				assertThat(MoviesApiServer.graphQlCalls()).isEqualTo(before + 1);
+			});
+	}
+
+	@Test
 	void startup_stdioWithoutTheStdioProperty_shouldStopNamingTheProperty() {
 		this.contextRunner
 			.withPropertyValues("spring.ai.mcp.server.protocol=STREAMABLE", "spring.ai.mcp.server.stdio=true")
@@ -92,18 +145,57 @@ class McpElicitStartupTests {
 	}
 
 	@Test
-	void startup_stdioWithTheStdioProperty_shouldDropTheReaderThreadCustomizerAndWarn(CapturedOutput output) {
-		this.contextRunner
-			.withPropertyValues("spring.ai.mcp.server.protocol=STREAMABLE", "spring.ai.mcp.server.stdio=true",
-					"gatool.mcp.stdio.elicitation=true")
-			.run((context) -> {
-				assertThat(context).hasNotFailed();
-				assertThat(context).doesNotHaveBean("gaToolStdioMcpSyncServerCustomizer");
-				assertThat(context).doesNotHaveBean("gaToolStdioImmediateExecutionStartupCheck");
-			});
+	void startup_stdioWithTheStdioProperty_shouldDropTheReaderThreadCustomizerKeepTheCheckAndWarn(
+			CapturedOutput output) {
+		this.stdioServer.withPropertyValues("gatool.mcp.stdio.elicitation=true").run((context) -> {
+			assertThat(context).hasNotFailed();
+			assertThat(context).doesNotHaveBean("gaToolStdioMcpSyncServerCustomizer");
+			assertThat(context).hasBean("gaToolStdioImmediateExecutionStartupCheck");
+			assertThat(ImmediateExecution.of(context.getBean(McpSyncServer.class)))
+				.as("immediateExecution on the stdio server bean while a tool can ask the user")
+				.isFalse();
+		});
 
 		assertThat(output).contains("stdio runs each tool call on the MCP SDK's thread pool")
 			.contains("java-sdk issue 686");
+	}
+
+	@Test
+	void startup_stdioElicitationWithAnApplicationCustomizerThatSetsImmediateExecution_shouldStop() {
+		this.stdioServer.withPropertyValues("gatool.mcp.stdio.elicitation=true")
+			.withUserConfiguration(ImmediateExecutionCustomizer.class)
+			.run((context) -> {
+				assertThat(context).hasFailed();
+				assertThat(stopOf(context)).isInstanceOf(McpSecurityException.class)
+					.hasMessageContaining("gatool.mcp.stdio.elicitation is true")
+					.hasMessageContaining("The MCP server bean 'mcpSyncServer' was built with immediateExecution(true)")
+					.hasMessageContaining("'immediateServerCustomizer', which the server took")
+					.isInstanceOfSatisfying(McpSecurityException.class,
+							(stop) -> assertThat(stop.action())
+								.contains("Remove immediateExecution(true) from that customizer")
+								.contains("gatool.mcp.stdio.elicitation"));
+			});
+	}
+
+	@Test
+	void startup_stdioElicitationSpelledOff_shouldStopOnTheMissingCustomizer(CapturedOutput output) {
+		// Boot binds off as false, while the customizer's condition compares the word
+		// itself with false and leaves the bean out. The ignore property lets the elicit
+		// tool past the stop for stdio without a channel, so the stop below is the
+		// check's.
+		this.stdioServer
+			.withPropertyValues("gatool.mcp.stdio.elicitation=off", "gatool.elicitation.ignore-where-unsupported=true")
+			.run((context) -> {
+				assertThat(context).hasFailed();
+				assertThat(stopOf(context)).isInstanceOf(McpSecurityException.class)
+					.hasMessageContaining(
+							"The MCP server bean 'mcpSyncServer' was built without immediateExecution(true)")
+					.hasMessageContaining("gatool.mcp.stdio.elicitation holds another word that binds false");
+			});
+
+		// The warning is written where the bound value is false, so the server runs
+		// every tool without asking.
+		assertThat(output).contains("these tools run without asking the user: topRatedMovies");
 	}
 
 	@Test
@@ -153,6 +245,73 @@ class McpElicitStartupTests {
 					.hasMessageContaining("gatool.mcp.stdio.elicitation")
 					.hasMessageContaining("servlet application");
 			});
+	}
+
+	// The check runs as a SmartInitializingSingleton, whose exception reaches the
+	// context unwrapped, so the stop is the most specific cause of the failure.
+	private static Throwable stopOf(AssertableApplicationContext context) {
+		Throwable failure = context.getStartupFailure();
+		assertThat(failure).isNotNull();
+		return NestedExceptionUtils.getMostSpecificCause(failure);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static McpStatelessServerFeatures.SyncToolSpecification statelessSpecification(
+			AssertableApplicationContext context, String tool) {
+		List<McpStatelessServerFeatures.SyncToolSpecification> specifications = (List<McpStatelessServerFeatures.SyncToolSpecification>) context
+			.getBeanProvider(STATELESS_TOOL_SPECIFICATIONS)
+			.getObject();
+		return specifications.stream()
+			.filter((candidate) -> candidate.tool().name().equals(tool))
+			.findFirst()
+			.orElseThrow();
+	}
+
+	/**
+	 * A customizer of an application's own that runs each tool call on the thread that
+	 * reads stdin.
+	 */
+	@Configuration(proxyBeanMethods = false)
+	static class ImmediateExecutionCustomizer {
+
+		@Bean
+		McpSyncServerCustomizer immediateServerCustomizer() {
+			return (server) -> server.immediateExecution(true);
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class StandInStdioProviderConfiguration {
+
+		@Bean
+		McpServerTransportProvider standInStdioProvider() {
+			return new StandInStdioProvider();
+		}
+
+	}
+
+	/**
+	 * A provider that stands in for the SDK's stdio provider, which reads the standard
+	 * input of the process it runs in.
+	 */
+	private static final class StandInStdioProvider implements McpServerTransportProvider {
+
+		@Override
+		public void setSessionFactory(McpServerSession.Factory sessionFactory) {
+			// These tests start the server and stop, so the factory stays unused.
+		}
+
+		@Override
+		public Mono<Void> notifyClients(String method, Object params) {
+			return Mono.empty();
+		}
+
+		@Override
+		public Mono<Void> closeGracefully() {
+			return Mono.empty();
+		}
+
 	}
 
 }

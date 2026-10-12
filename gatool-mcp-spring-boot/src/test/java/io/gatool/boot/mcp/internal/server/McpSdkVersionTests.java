@@ -53,9 +53,20 @@ class McpSdkVersionTests {
 			.isNotNull()
 			.as("The MCP Java SDK release found here is later than 2.0.1, so it carries the repair "
 					+ "of https://github.com/modelcontextprotocol/java-sdk/issues/686 and its queue takes an answer "
-					+ "emitted beside another. Take the bean gaToolStdioMcpSyncServerCustomizer out of "
-					+ "GAToolMcpAutoConfiguration, take its startup check over stdio out beside it, and take this "
-					+ "test out.")
+					+ "emitted beside another. Stdio can then run each tool call on the SDK's thread pool and ask "
+					+ "the user, so the workaround and gatool.mcp.stdio.elicitation leave in one change. "
+					+ "In GAToolMcpAutoConfiguration, take out the bean gaToolStdioMcpSyncServerCustomizer with its "
+					+ "@ConditionalOnProperty on gatool.mcp.stdio.elicitation, and take out its startup check "
+					+ "gaToolStdioImmediateExecutionStartupCheck, which reads that property. In "
+					+ "ImmediateExecutionCheck, take out the stdio reports and requireWorkerThreadExecution. In "
+					+ "gaToolMcpStatefulToolSpecifications, take out the asks rule, so stdio asks the way stateful "
+					+ "HTTP does, and with it the stdio call of McpStartupStops.stopWhereToolsElicitWithoutAChannel. "
+					+ "Take the property out of GAToolMcpProperties and take McpStartupWarnings.warnOnStdioElicitation "
+					+ "out. McpStartupStops.stopOnStdioElicitationInAWebApplication names the property as well: "
+					+ "Spring AI's own customizer still runs each call on the thread that reads stdin in a servlet "
+					+ "application that serves stdio, so keep that stop and drop the property from it. Take the "
+					+ "property's row and its sentences out of the README, add a CHANGELOG entry that says the "
+					+ "property is gone, and take this test out.")
 			.isIn("2.0.0", "2.0.1");
 	}
 

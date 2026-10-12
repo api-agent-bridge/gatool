@@ -736,7 +736,8 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 		 * condition below backs off for it. The startup check beside this bean stops an
 		 * application whose own customizer leaves the setting out. With
 		 * {@code gatool.mcp.stdio.elicitation} on, this bean backs off, so the server
-		 * keeps the SDK default and a tool can ask the user.
+		 * keeps the SDK default and a tool can ask the user, and the check beside it then
+		 * stops an application whose own customizer sets immediate execution.
 		 * @return the customizer that keeps every stdio answer on the reader thread
 		 */
 		// The web condition holds this bean to a context without a web application, which
@@ -760,32 +761,44 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 		}
 
 		/**
-		 * Stops startup where the stdio server bean was built without
-		 * {@code immediateExecution(true)}.
+		 * Stops startup where the stdio server bean runs tool calls on a thread that
+		 * {@code gatool.mcp.stdio.elicitation} rules out.
 		 *
 		 * <p>
-		 * {@link RequestThreadCheck} carries the same check for a servlet application and
-		 * skips stdio, where GATool reads the caller from the one process that started
-		 * the server. This check covers stdio for a second reason: an answer emitted
-		 * beside another is dropped and the transport closes, so every answer stays on
-		 * the thread that reads stdin.
+		 * While the property is false, the check requires
+		 * {@code immediateExecution(true)}. {@link RequestThreadCheck} requires it for a
+		 * servlet application and skips stdio, and stdio needs it for another reason: an
+		 * answer emitted beside another is dropped and the transport closes. While the
+		 * property is true, the check requires the setting off, because the user's answer
+		 * arrives on the thread that reads stdin, and a tool call held on that thread
+		 * would wait until the request timeout ends it. An application's own customizer
+		 * that sets immediate execution then stops startup here.
 		 *
 		 * <p>
-		 * The stateful sync server is the one shape stdio runs on, because Spring AI
-		 * serves stdio on a stateful session and {@code stopOnAsyncServer} refuses the
-		 * asynchronous servers. With {@code gatool.mcp.stdio.elicitation} on, this bean
-		 * backs off, so the server keeps the SDK default and a tool can ask the user.
+		 * The check reads the bound property, and the customizer's condition compares the
+		 * raw value with {@code false}, so a spelling Boot binds as false, such as
+		 * {@code off}, leaves the customizer out and stops startup here. The stateful
+		 * sync server is the one shape stdio runs on, because Spring AI serves stdio on a
+		 * stateful session and {@code stopOnAsyncServer} refuses the asynchronous
+		 * servers.
 		 * @param beanFactory holds the server beans and the customizer beans
+		 * @param properties carries {@code gatool.mcp.stdio.elicitation}
 		 * @return the check that runs once every singleton exists
 		 */
 		@Bean
 		@ConditionalOnProperty(prefix = "spring.ai.mcp.server", name = "stdio", havingValue = "true")
-		@ConditionalOnProperty(prefix = "gatool.mcp.stdio", name = "elicitation", havingValue = "false",
-				matchIfMissing = true)
 		SmartInitializingSingleton gaToolStdioImmediateExecutionStartupCheck(
-				ConfigurableListableBeanFactory beanFactory) {
-			return () -> ImmediateExecutionCheck.requireImmediateExecution(beanFactory, McpSyncServer.class,
-					ImmediateExecutionCheck::overStdio);
+				ConfigurableListableBeanFactory beanFactory, GAToolProperties properties) {
+			return () -> {
+				if (properties.getMcp().getStdio().isElicitation()) {
+					ImmediateExecutionCheck.requireWorkerThreadExecution(beanFactory, McpSyncServer.class,
+							ImmediateExecutionCheck::overStdioWhileAsking);
+				}
+				else {
+					ImmediateExecutionCheck.requireImmediateExecution(beanFactory, McpSyncServer.class,
+							ImmediateExecutionCheck::overStdio);
+				}
+			};
 		}
 
 		// Eager under lazy initialization for the reason the stateless list is.
