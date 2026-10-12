@@ -16,6 +16,7 @@
 
 package io.gatool.boot.mcp.autoconfigure;
 
+import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -40,6 +41,7 @@ import io.gatool.boot.GAToolCatalog;
 import io.gatool.boot.autoconfigure.GAToolProperties;
 import io.gatool.boot.internal.SpringAiMcpKeys;
 import io.gatool.boot.mcp.internal.limit.RequestCaller;
+import io.gatool.boot.mcp.internal.server.ElicitationSettings;
 import io.gatool.boot.mcp.internal.server.McpCallSettings;
 import io.gatool.boot.mcp.limit.ToolRateLimiter;
 import io.gatool.core.internal.operation.ScopeNames;
@@ -101,6 +103,24 @@ final class McpCallPolicies {
 	private static boolean requiresTheRequestThread(ApplicationContext applicationContext) {
 		return applicationContext instanceof WebApplicationContext
 				&& !SpringAiMcpKeys.servesStdio(applicationContext.getEnvironment());
+	}
+
+	// Spring AI passes spring.ai.mcp.server.request-timeout to the server builder, and
+	// the SDK applies it to each request the server sends to a client, so the wait for
+	// the user ends with it and the timeout answer names it.
+	static ElicitationSettings elicitation(GAToolProperties properties, Environment environment, boolean asks) {
+		return new ElicitationSettings(asks, properties.getElicitation().getDeclinedAnswer(),
+				properties.getElicitation().getCancelledAnswer(), requestTimeout(environment));
+	}
+
+	// The value Spring AI applies, 20 seconds while the property is unset. The Binder
+	// reads the duration formats Spring AI's own binding reads, such as 5s and 5m, in any
+	// context. Environment.getProperty converts a string to a Duration only where Boot's
+	// conversion service is installed, which a plain application context lacks.
+	static Duration requestTimeout(Environment environment) {
+		return Binder.get(environment)
+			.bind("spring.ai.mcp.server.request-timeout", Duration.class)
+			.orElse(Duration.ofSeconds(20));
 	}
 
 	/**

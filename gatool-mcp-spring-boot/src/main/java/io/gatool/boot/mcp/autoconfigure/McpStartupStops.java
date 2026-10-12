@@ -63,6 +63,10 @@ final class McpStartupStops {
 
 	static final String UNAUTHENTICATED_SWITCH = "gatool.mcp.security.unsafe.allow-mcp-calls-without-authentication";
 
+	static final String IGNORE_PROPERTY = "gatool.elicitation.ignore-where-unsupported";
+
+	static final String STDIO_ELICITATION_PROPERTY = "gatool.mcp.stdio.elicitation";
+
 	private static final String WEB_APPLICATION_TYPE_PROPERTY = "spring.main.web-application-type";
 
 	// The bean types a reactive application declares, by name, because each one lives
@@ -313,6 +317,50 @@ final class McpStartupStops {
 							+ GAToolEnvironmentPostProcessor.PROTOCOL
 							+ " unset, and GATool sets STREAMABLE for stdio.");
 		}
+	}
+
+	/**
+	 * Fails startup where a tool marked elicit is served by a deployment without a
+	 * channel to the user, unless the ignore property says to serve it without asking.
+	 * @param catalog the tools
+	 * @param properties carries the ignore property
+	 * @param transport what is running, for the message
+	 * @param fix the setting that gives the deployment a channel
+	 */
+	static void stopWhereToolsElicitWithoutAChannel(GAToolCatalog catalog, GAToolProperties properties,
+			String transport, String fix) {
+		List<String> asking = elicitToolNames(catalog);
+		if (asking.isEmpty() || properties.getElicitation().isIgnoreWhereUnsupported()) {
+			return;
+		}
+		throw new InvalidConfigurationPropertyValueException(IGNORE_PROPERTY, false,
+				asking.size() + ((asking.size() == 1) ? " tool asks" : " tools ask") + " the user before each call ("
+						+ String.join(", ", asking) + "), and this deployment runs on " + transport
+						+ ", which cannot ask. " + fix + ", or set " + IGNORE_PROPERTY
+						+ "=true to serve these tools without asking.");
+	}
+
+	/**
+	 * Fails startup where a servlet application serves stdio with the stdio elicitation
+	 * property on: Spring AI's own servlet customizer keeps every tool call on the thread
+	 * that reads stdin there, so the wait for the user would time out.
+	 * @param properties carries the stdio property
+	 * @param applicationContext says whether this is a web application
+	 */
+	static void stopOnStdioElicitationInAWebApplication(GAToolProperties properties,
+			ApplicationContext applicationContext) {
+		if (properties.getMcp().getStdio().isElicitation() && applicationContext instanceof WebApplicationContext
+				&& SpringAiMcpKeys.servesStdio(applicationContext.getEnvironment())) {
+			throw new InvalidConfigurationPropertyValueException(STDIO_ELICITATION_PROPERTY, true,
+					"Spring AI's own customizer runs each tool call on the thread that reads stdin in a servlet "
+							+ "application, so a tool that asks the user would wait for an answer that thread "
+							+ "cannot read. Serve stdio from an application without a web server, which GATool "
+							+ "sets up with spring.main.web-application-type=none, or leave this property off.");
+		}
+	}
+
+	static List<String> elicitToolNames(GAToolCatalog catalog) {
+		return catalog.mcpTools().stream().filter((tool) -> tool.elicit() != null).map(GATool::name).toList();
 	}
 
 	// A cap below one turns every client away, and a timeout at or below zero evicts

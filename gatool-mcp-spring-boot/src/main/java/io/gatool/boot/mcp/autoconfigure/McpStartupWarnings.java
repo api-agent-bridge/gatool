@@ -18,6 +18,7 @@ package io.gatool.boot.mcp.autoconfigure;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
@@ -198,6 +199,40 @@ final class McpStartupWarnings {
 				+ "every session gatool.mcp.sessions.max-count (" + maxCount + ") allows. That caller can then "
 				+ "leave every other caller with 503 until sessions expire. Set "
 				+ "gatool.mcp.sessions.max-count-per-caller to a number below gatool.mcp.sessions.max-count.");
+	}
+
+	static void warnWhenElicitToolsRunWithoutAsking(GAToolCatalog catalog, GAToolProperties properties) {
+		if (!properties.getElicitation().isIgnoreWhereUnsupported()) {
+			return;
+		}
+		List<String> asking = McpStartupStops.elicitToolNames(catalog);
+		if (!asking.isEmpty()) {
+			logger.warn(McpStartupStops.IGNORE_PROPERTY + " is true, so these tools run without asking the user: "
+					+ String.join(", ", asking) + ".");
+		}
+	}
+
+	// A person reads a dialog and decides; 60 seconds is the floor under which the
+	// warning fires, and the value named is the one Spring AI applies.
+	static void warnWhenTheRequestTimeoutIsShortForAPerson(GAToolCatalog catalog, Environment environment) {
+		List<String> asking = McpStartupStops.elicitToolNames(catalog);
+		if (asking.isEmpty()) {
+			return;
+		}
+		Duration timeout = McpCallPolicies.requestTimeout(environment);
+		if (timeout.compareTo(Duration.ofSeconds(60)) < 0) {
+			logger.warn(asking.size() + ((asking.size() == 1) ? " tool asks" : " tools ask")
+					+ " the user before each call, and spring.ai.mcp.server.request-timeout gives the user "
+					+ timeout.toSeconds() + " seconds to answer; set it to the time a person needs, such as 5m.");
+		}
+	}
+
+	static void warnOnStdioElicitation(GAToolProperties properties, Environment environment) {
+		if (properties.getMcp().getStdio().isElicitation() && SpringAiMcpKeys.servesStdio(environment)) {
+			logger.warn("stdio runs each tool call on the MCP SDK's thread pool, so a tool can ask the user ("
+					+ McpStartupStops.STDIO_ELICITATION_PROPERTY + "). Until the MCP Java SDK release after 2.0.1, "
+					+ "two answers reaching stdout at once can close the transport (java-sdk issue 686).");
+		}
 	}
 
 }

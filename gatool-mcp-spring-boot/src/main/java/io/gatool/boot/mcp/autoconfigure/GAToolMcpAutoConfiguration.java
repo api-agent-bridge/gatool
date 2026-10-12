@@ -527,6 +527,9 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 			McpStartupStops.stopOnStatelessStdio(environment);
 			McpStartupStops.stopWhenTheToolCapabilityIsOff(catalog, environment);
 			McpStartupStops.stopWhenCallersArriveUnauthenticated(properties, environment);
+			McpStartupStops.stopWhereToolsElicitWithoutAChannel(catalog, properties,
+					"the stateless Streamable HTTP transport", "Set spring.ai.mcp.server.protocol=STREAMABLE");
+			McpStartupWarnings.warnWhenElicitToolsRunWithoutAsking(catalog, properties);
 			// Bound once, so the check below and the settings each call runs under read
 			// the same map.
 			Map<String, String> mimeTypes = McpCallPolicies.readToolResponseMimeTypes(environment);
@@ -537,8 +540,10 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 			Map<String, List<String>> springAiToolNames = SpringAiToolNames.read(beanFactory);
 			McpStartupWarnings.warnWhenScopedToolsRunOpen(catalog, properties);
 			McpStartupWarnings.warnWhenStdioScopesAreSetOverHttp(properties);
-			McpCallSettings policy = McpCallPolicies.buildCallPolicy(properties, mimeTypes, rateLimiter,
-					observationRegistry, beanFactory, applicationContext);
+			McpCallSettings policy = McpCallPolicies
+				.buildCallPolicy(properties, mimeTypes, rateLimiter, observationRegistry, beanFactory,
+						applicationContext)
+				.withElicitation(McpCallPolicies.elicitation(properties, environment, false));
 			List<McpStatelessServerFeatures.SyncToolSpecification> specifications = catalog.mcpTools()
 				.stream()
 				.map((tool) -> McpToolSpecifications.specification(tool, mcpServerJsonMapper, policy))
@@ -729,7 +734,9 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 		 * Spring AI's server bean takes one {@code McpSyncServerCustomizer}, so an
 		 * application's own bean of that type takes the place of this one, and the
 		 * condition below backs off for it. The startup check beside this bean stops an
-		 * application whose own customizer leaves the setting out.
+		 * application whose own customizer leaves the setting out. With
+		 * {@code gatool.mcp.stdio.elicitation} on, this bean backs off, so the server
+		 * keeps the SDK default and a tool can ask the user.
 		 * @return the customizer that keeps every stdio answer on the reader thread
 		 */
 		// The web condition holds this bean to a context without a web application, which
@@ -744,6 +751,8 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 		// stdio.
 		@Bean
 		@ConditionalOnProperty(prefix = "spring.ai.mcp.server", name = "stdio", havingValue = "true")
+		@ConditionalOnProperty(prefix = "gatool.mcp.stdio", name = "elicitation", havingValue = "false",
+				matchIfMissing = true)
 		@ConditionalOnNotWebApplication
 		@ConditionalOnMissingBean(McpSyncServerCustomizer.class)
 		McpSyncServerCustomizer gaToolStdioMcpSyncServerCustomizer() {
@@ -764,12 +773,15 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 		 * <p>
 		 * The stateful sync server is the one shape stdio runs on, because Spring AI
 		 * serves stdio on a stateful session and {@code stopOnAsyncServer} refuses the
-		 * asynchronous servers.
+		 * asynchronous servers. With {@code gatool.mcp.stdio.elicitation} on, this bean
+		 * backs off, so the server keeps the SDK default and a tool can ask the user.
 		 * @param beanFactory holds the server beans and the customizer beans
 		 * @return the check that runs once every singleton exists
 		 */
 		@Bean
 		@ConditionalOnProperty(prefix = "spring.ai.mcp.server", name = "stdio", havingValue = "true")
+		@ConditionalOnProperty(prefix = "gatool.mcp.stdio", name = "elicitation", havingValue = "false",
+				matchIfMissing = true)
 		SmartInitializingSingleton gaToolStdioImmediateExecutionStartupCheck(
 				ConfigurableListableBeanFactory beanFactory) {
 			return () -> ImmediateExecutionCheck.requireImmediateExecution(beanFactory, McpSyncServer.class,
@@ -788,6 +800,19 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 			// this method inside the parameter limit.
 			Environment environment = applicationContext.getEnvironment();
 			McpStartupStops.stopWhenTheToolCapabilityIsOff(catalog, environment);
+			boolean stdio = SpringAiMcpKeys.servesStdio(environment);
+			boolean asks = !stdio || properties.getMcp().getStdio().isElicitation();
+			if (!asks) {
+				McpStartupStops.stopWhereToolsElicitWithoutAChannel(catalog, properties,
+						"stdio while " + McpStartupStops.STDIO_ELICITATION_PROPERTY + " is false",
+						"Set " + McpStartupStops.STDIO_ELICITATION_PROPERTY + "=true");
+				McpStartupWarnings.warnWhenElicitToolsRunWithoutAsking(catalog, properties);
+			}
+			else {
+				McpStartupStops.stopOnStdioElicitationInAWebApplication(properties, applicationContext);
+				McpStartupWarnings.warnOnStdioElicitation(properties, environment);
+				McpStartupWarnings.warnWhenTheRequestTimeoutIsShortForAPerson(catalog, environment);
+			}
 			Set<String> grantedScopes = null;
 			if (SpringAiMcpKeys.servesStdio(environment)) {
 				logger.info("GATool serves MCP over stdio.");
@@ -817,7 +842,8 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 			McpCallSettings policy = McpCallPolicies
 				.buildCallPolicy(properties, mimeTypes, rateLimiter, observationRegistry, beanFactory,
 						applicationContext)
-				.withGrantedScopes(grantedScopes);
+				.withGrantedScopes(grantedScopes)
+				.withElicitation(McpCallPolicies.elicitation(properties, environment, asks));
 			return catalog.mcpTools()
 				.stream()
 				.map((tool) -> McpToolSpecifications.statefulSpecification(tool, mcpServerJsonMapper, policy))
