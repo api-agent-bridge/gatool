@@ -1360,7 +1360,12 @@ the server silent with its process up. An application that declares its own
 `McpSyncServerCustomizer` keeps `immediateExecution(true)` in it, and startup
 stops while that setting is left out. With `gatool.mcp.stdio.elicitation=true`
 that setting backs off, so a tool marked `elicit` can ask the user; the
-configuration table says what the deployment accepts in return.
+configuration table says what the deployment accepts in return. In an
+application that keeps `spring.main.web-application-type=servlet` while it
+serves stdio, that property stops startup, because Spring AI's own customizer
+runs each tool call on the thread that reads stdin there, where the answer
+cannot be read. Serve stdio from an application without a web server, which is
+what GATool sets up by default.
 
 Under stdio, GATool sets `spring.main.web-application-type=none` and
 `spring.main.banner-mode=off` while those properties are unset, so the
@@ -1615,10 +1620,12 @@ decides what a model reads as tool text.
 - An error's `extensions` reach the model as the API wrote them, and some APIs
   put an exception class or the lines of a stack trace there. The
   configuration of the API is where a team switches that off.
-- GATool does not ask a person before a mutation runs. Over MCP that question
-  belongs to the client: MCP asks a client to keep a person in the loop and to
-  confirm a sensitive operation, and the hints above tell a client which tools
-  write.
+- A tool marked `@gatool(elicit: "...")` asks the user before it runs, as
+  [Asking the user before a call](#asking-the-user-before-a-call) describes.
+  For any other tool, GATool does not ask a person before a mutation runs. Over
+  MCP that question belongs to the client: MCP asks a client to keep a person in
+  the loop and to confirm a sensitive operation, and the hints above tell a
+  client which tools write.
 - In process, Spring AI's `ToolCallingManager` calls the callback that a
   model's response names, so a mutation under `gatool/in-process/` runs as soon
   as the model asks for it. Spring AI's `ToolMetadata` carries `returnDirect`

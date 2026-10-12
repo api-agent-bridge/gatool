@@ -7,7 +7,7 @@
 - A tool marked `@gatool(elicit: "...")` asks the user that question through
   MCP elicitation before each call, on the stateful Streamable HTTP transport
   and on stdio with `gatool.mcp.stdio.elicitation=true`, and runs the
-  operation after an accept. A decline, a cancel, a client without the
+  operation after an accept. A decline, a cancel, a client without the form
   elicitation capability, a timeout and a failure each answer a tool error,
   and the API stays uncalled. The README section "Asking the user before a
   call" has the five sentences.
@@ -36,8 +36,9 @@
 - `gatool.elicitation.ignore-where-unsupported`, off by default, lets a
   deployment that cannot ask start with such tools running without asking.
 - `gatool.mcp.stdio.elicitation`, off by default, runs stdio tool calls on
-  the MCP SDK's thread pool so a tool can ask, and leaves with the SDK release
-  that repairs java-sdk issue 686.
+  the MCP SDK's thread pool so a tool can ask, stops startup where a servlet
+  application serves stdio, and leaves with the SDK release that repairs
+  java-sdk issue 686.
 
 ### Fixes
 
