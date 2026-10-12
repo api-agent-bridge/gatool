@@ -51,7 +51,8 @@ import org.jspecify.annotations.Nullable;
  * itself and the tool's settings sit in the same diff as the query. Its arguments arrive
  * across releases. This release reads {@code name}, which wins over the naming strategy,
  * {@code title}, which reaches the MCP tool definition, {@code scopes}, which the MCP
- * endpoint checks on every call, {@code openWorld} and {@code outputSchema}.
+ * endpoint checks on every call, {@code openWorld}, {@code outputSchema} and
+ * {@code elicit}, which holds the question the user answers before each call.
  *
  * <p>
  * The directive leaves the document before anything else sees it. A GraphQL API declares
@@ -81,13 +82,16 @@ public final class ToolDirective {
 
 	private final @Nullable Boolean outputSchema;
 
+	private final @Nullable String elicit;
+
 	private ToolDirective(@Nullable String toolName, @Nullable String title, @Nullable List<String> scopes,
-			@Nullable Boolean openWorld, @Nullable Boolean outputSchema) {
+			@Nullable Boolean openWorld, @Nullable Boolean outputSchema, @Nullable String elicit) {
 		this.toolName = toolName;
 		this.title = title;
 		this.scopes = scopes;
 		this.openWorld = openWorld;
 		this.outputSchema = outputSchema;
+		this.elicit = elicit;
 	}
 
 	/**
@@ -101,14 +105,14 @@ public final class ToolDirective {
 	public static ToolDirective read(OperationDefinition operation, String location, OperationDiagnostics diagnostics) {
 		List<Directive> directives = operation.getDirectives(NAME);
 		if (directives.isEmpty()) {
-			return new ToolDirective(null, null, null, null, null);
+			return new ToolDirective(null, null, null, null, null, null);
 		}
 		if (directives.size() > 1) {
 			diagnostics.problem(location,
 					"carries @" + NAME + " " + directives.size()
 							+ " times, and one file makes one tool, so the directive belongs on the operation once"
 							+ at(directives.get(1)));
-			return new ToolDirective(null, null, null, null, null);
+			return new ToolDirective(null, null, null, null, null, null);
 		}
 		Directive directive = directives.getFirst();
 		// graphql-java's UniqueArgumentNames rule would catch a repeated argument, and it
@@ -121,8 +125,8 @@ public final class ToolDirective {
 			if (!Arguments.RECOGNISED.contains(argument.getName())) {
 				diagnostics.problem(location,
 						describeArgument(argument.getName()) + ", and this release reads " + Arguments.NAME + ", "
-								+ Arguments.TITLE + ", " + Arguments.SCOPES + ", " + Arguments.OPEN_WORLD + " and "
-								+ Arguments.OUTPUT_SCHEMA + at(argument));
+								+ Arguments.TITLE + ", " + Arguments.SCOPES + ", " + Arguments.OPEN_WORLD + ", "
+								+ Arguments.OUTPUT_SCHEMA + " and " + Arguments.ELICIT + at(argument));
 			}
 			if (!seen.add(argument.getName()) && repeated.add(argument.getName())) {
 				diagnostics.problem(location,
@@ -135,7 +139,8 @@ public final class ToolDirective {
 				readStringArgument(directive, Arguments.TITLE, location, diagnostics),
 				readScopesArgument(directive, location, diagnostics),
 				readBooleanArgument(directive, Arguments.OPEN_WORLD, location, diagnostics),
-				readBooleanArgument(directive, Arguments.OUTPUT_SCHEMA, location, diagnostics));
+				readBooleanArgument(directive, Arguments.OUTPUT_SCHEMA, location, diagnostics),
+				readStringArgument(directive, Arguments.ELICIT, location, diagnostics));
 	}
 
 	/**
@@ -309,6 +314,15 @@ public final class ToolDirective {
 		return this.outputSchema;
 	}
 
+	/**
+	 * Returns the question the user reads before each call, or {@code null} where the
+	 * file leaves the argument out.
+	 * @return the value the file wrote
+	 */
+	public @Nullable String elicit() {
+		return this.elicit;
+	}
+
 	// Every problem this class reports opens by naming the argument of the directive that
 	// caused it, so the message points at one argument before it says what was wrong.
 	private static String describeArgument(String argumentName) {
@@ -456,11 +470,13 @@ public final class ToolDirective {
 
 		static final String OUTPUT_SCHEMA = "outputSchema";
 
+		static final String ELICIT = "elicit";
+
 		// An argument outside this set stops startup. graphql-java validates a document
 		// against the API's own schema, which declares its own directives alone, so a
 		// misspelled argument reaches this class unchallenged. The problem reported here
 		// says that @gatool(nmae:) left the tool as it was.
-		static final Set<String> RECOGNISED = Set.of(NAME, TITLE, SCOPES, OPEN_WORLD, OUTPUT_SCHEMA);
+		static final Set<String> RECOGNISED = Set.of(NAME, TITLE, SCOPES, OPEN_WORLD, OUTPUT_SCHEMA, ELICIT);
 
 		private Arguments() {
 		}

@@ -44,6 +44,8 @@ public final class ToolOperation {
 
 	private final @Nullable String title;
 
+	private final @Nullable String elicit;
+
 	private final String printedDocument;
 
 	private final String inputSchema;
@@ -72,6 +74,7 @@ public final class ToolOperation {
 		this.operationType = require(builder.operationType, "operationType");
 		this.description = builder.description;
 		this.title = builder.title;
+		this.elicit = builder.elicit;
 		this.printedDocument = require(builder.printedDocument, "printedDocument");
 		this.inputSchema = require(builder.inputSchema, "inputSchema");
 		this.location = require(builder.location, "location");
@@ -140,6 +143,15 @@ public final class ToolOperation {
 	 */
 	public @Nullable String title() {
 		return this.title;
+	}
+
+	/**
+	 * Returns the question the user reads before each call, which {@code @gatool} sets,
+	 * or {@code null} where the file leaves it out and the tool runs without asking.
+	 * @return the value the builder was given
+	 */
+	public @Nullable String elicit() {
+		return this.elicit;
 	}
 
 	/**
@@ -319,6 +331,8 @@ public final class ToolOperation {
 
 		private @Nullable String title;
 
+		private @Nullable String elicit;
+
 		private @Nullable String printedDocument;
 
 		private @Nullable String inputSchema;
@@ -366,6 +380,11 @@ public final class ToolOperation {
 
 		public Builder title(@Nullable String title) {
 			this.title = title;
+			return this;
+		}
+
+		public Builder elicit(@Nullable String elicit) {
+			this.elicit = elicit;
 			return this;
 		}
 

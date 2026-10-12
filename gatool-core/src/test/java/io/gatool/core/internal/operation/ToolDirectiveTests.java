@@ -117,6 +117,66 @@ class ToolDirectiveTests {
 	}
 
 	@Test
+	void build_directiveWithAnElicitQuestion_shouldCarryItToTheTool() {
+		OperationCatalog catalog = this.builder.create(List.of(sided("""
+				# Returns the highest-rated movies, best first.
+				query TopRatedMovies($first: Int = 10) @gatool(elicit: "Read the top rated movies?") {
+				  topRatedMovies(first: $first) { id title }
+				}
+				""")));
+
+		assertThat(catalog.problems()).isEmpty();
+		assertThat(catalog.tools()).singleElement().satisfies((tool) -> {
+			assertThat(tool.elicit()).isEqualTo("Read the top rated movies?");
+			assertThat(tool.printedDocument()).doesNotContain("gatool");
+		});
+	}
+
+	@Test
+	void build_withoutTheDirective_shouldLeaveElicitUnset() {
+		OperationCatalog catalog = this.builder.create(List.of(sided("""
+				# Returns the highest-rated movies, best first.
+				query TopRatedMovies {
+				  topRatedMovies { id title }
+				}
+				""")));
+
+		assertThat(catalog.tools()).singleElement().satisfies((tool) -> assertThat(tool.elicit()).isNull());
+	}
+
+	@Test
+	void build_directiveWithABlankElicitQuestion_shouldReportTheProblem() {
+		// The question reaches a person as the whole dialog, so a blank one is refused
+		// the way a blank title is.
+		OperationCatalog catalog = this.builder.create(List.of(sided("""
+				# Returns the highest-rated movies, best first.
+				query TopRatedMovies @gatool(elicit: " \\u00A0") {
+				  topRatedMovies { id title }
+				}
+				""")));
+
+		assertThat(catalog.tools()).isEmpty();
+		assertThat(catalog.problems()).singleElement()
+			.satisfies(
+					(problem) -> assertThat(problem.message()).startsWith("sets @gatool(elicit:) to a blank string"));
+	}
+
+	@Test
+	void build_elicitThatIsNotAString_shouldReportTheProblem() {
+		OperationCatalog catalog = this.builder.create(List.of(sided("""
+				# Returns the highest-rated movies, best first.
+				query TopRatedMovies @gatool(elicit: true) {
+				  topRatedMovies { id title }
+				}
+				""")));
+
+		assertThat(catalog.tools()).isEmpty();
+		assertThat(catalog.problems()).singleElement()
+			.satisfies((problem) -> assertThat(problem.message())
+				.startsWith("sets @gatool(elicit:) to something other than a string"));
+	}
+
+	@Test
 	void build_openWorldThatIsNotABoolean_shouldReportTheProblem() {
 		OperationCatalog catalog = this.builder.create(List.of(sided("""
 				# Returns the highest-rated movies, best first.
@@ -174,7 +234,7 @@ class ToolDirectiveTests {
 		assertThat(catalog.tools()).isEmpty();
 		assertThat(catalog.problems()).singleElement()
 			.satisfies((problem) -> assertThat(problem.message()).contains("destructive", "name", "title", "scopes",
-					"openWorld"));
+					"openWorld", "outputSchema", "elicit"));
 	}
 
 	@Test

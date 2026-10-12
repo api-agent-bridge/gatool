@@ -12,4 +12,6 @@ directive @gatool(
   openWorld: Boolean
   "Publishes an output schema for this tool, overriding gatool.results.publish-output-schema either way."
   outputSchema: Boolean
+  "Asks the user this question before each call, through MCP elicitation, and runs the operation after an accept."
+  elicit: String
 ) on QUERY | MUTATION

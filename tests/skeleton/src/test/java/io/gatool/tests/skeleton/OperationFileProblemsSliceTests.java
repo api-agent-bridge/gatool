@@ -140,7 +140,7 @@ class OperationFileProblemsSliceTests {
 				""");
 
 		problemsIn(folder).hasMessageContaining("Typo.graphql sets @gatool(nmae:), and this release reads name, "
-				+ "title, scopes, openWorld and outputSchema");
+				+ "title, scopes, openWorld, outputSchema and elicit");
 	}
 
 	@Test
