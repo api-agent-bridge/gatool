@@ -4,9 +4,40 @@
 
 ### Tool contract changes
 
+- A tool marked `@gatool(elicit: "...")` asks the user that question through
+  MCP elicitation before each call, on the stateful Streamable HTTP transport
+  and on stdio with `gatool.mcp.stdio.elicitation=true`, and runs the
+  operation after an accept. A decline, a cancel, a client without the
+  elicitation capability, a timeout and a failure each answer a tool error,
+  and the API stays uncalled. The README section "Asking the user before a
+  call" has the five sentences.
+- Startup now stops where such a tool is served by the stateless server, by
+  the in-process starter, or by stdio without that property, unless
+  `gatool.elicitation.ignore-where-unsupported=true` serves it without asking.
+- The startup listing says ", asks the user before each call" beside such a
+  tool, and the `gatool.call` observation gains the outcomes
+  `elicitation-unsupported`, `elicitation-declined`, `elicitation-cancelled`,
+  `elicitation-timeout` and `elicitation-failed`.
+
 ### Java API changes
 
+- `GATool.elicit()` and `GATool.Builder.elicit(String)` carry the question;
+  `CheckedTool.elicit()` reports it from the build check. All three are
+  additions.
+- `GAToolElicitationProperties` binds `gatool.elicitation`, reached through
+  `GAToolProperties.getElicitation()`, under the same promise as the other
+  properties classes.
+
 ### Properties
+
+- `gatool.elicitation.declined-answer` and
+  `gatool.elicitation.cancelled-answer` set the sentences the model reads;
+  `{tool}` stands for the tool name.
+- `gatool.elicitation.ignore-where-unsupported`, off by default, lets a
+  deployment that cannot ask start with such tools running without asking.
+- `gatool.mcp.stdio.elicitation`, off by default, runs stdio tool calls on
+  the MCP SDK's thread pool so a tool can ask, and leaves with the SDK release
+  that repairs java-sdk issue 686.
 
 ### Fixes
 
