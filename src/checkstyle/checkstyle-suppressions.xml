@@ -12,4 +12,5 @@
 	<suppress files="[\\/]autoconfigure[\\/].*Properties\.java" checks="JavadocVariable" />
 	<suppress files=".+Configuration\.java" checks="HideUtilityClassConstructor" />
 	<suppress files=".+Application\.java" checks="HideUtilityClassConstructor" />
+	<suppress files="[\\/]internal[\\/]server[\\/]McpCallSettings\.java" checks="RecordComponentNumber" />
 </suppressions>

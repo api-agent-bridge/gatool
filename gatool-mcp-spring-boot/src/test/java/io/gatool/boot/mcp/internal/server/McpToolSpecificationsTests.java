@@ -18,13 +18,16 @@ package io.gatool.boot.mcp.internal.server;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import io.micrometer.observation.ObservationRegistry;
+import io.modelcontextprotocol.common.McpTransportContext;
 import io.modelcontextprotocol.json.schema.JsonSchemaValidator;
 import io.modelcontextprotocol.json.schema.jackson3.DefaultJsonSchemaValidator;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -513,6 +516,92 @@ class McpToolSpecificationsTests {
 		assertThat(annotations.readOnlyHint()).isFalse();
 		assertThat(annotations.destructiveHint()).isTrue();
 		assertThat(annotations.idempotentHint()).isFalse();
+	}
+
+	@Test
+	void statefulSpecification_rateLimitedCallOfAnElicitTool_shouldRefuseBeforeAsking() {
+		AtomicInteger calls = new AtomicInteger();
+		GATool tool = tool((arguments) -> {
+			calls.incrementAndGet();
+			return new ToolCallOutcome("{}", false);
+		}).toBuilder().elicit("Read the movies?").build();
+		FakeLoggableSession session = FakeLoggableSession.answering(McpSchema.ElicitResult.Action.ACCEPT);
+		McpCallSettings refusing = new McpCallSettings(
+				(caller, name) -> RateLimitDecision.refuse(Duration.ofSeconds(30), "60 calls per minute"),
+				() -> "10.0.0.1", ObservationRegistry.NOOP, false, Map.of())
+			.withElicitation(asking());
+
+		McpSchema.CallToolResult result = McpToolSpecifications.statefulSpecification(tool, jsonMapper(), refusing)
+			.callHandler()
+			.apply(UserApprovalTests.exchange(session, McpSchema.ClientCapabilities.builder().elicitation().build()),
+					McpSchema.CallToolRequest.builder("topRatedMovies").arguments(Map.of()).build());
+
+		assertThat(result.isError()).isTrue();
+		assertThat(session.requests).hasValue(0);
+		assertThat(calls).hasValue(0);
+	}
+
+	@Test
+	void statefulSpecification_elicitToolUnderAnAcceptingClient_shouldAskOnceAndRun() {
+		AtomicInteger calls = new AtomicInteger();
+		GATool tool = tool((arguments) -> {
+			calls.incrementAndGet();
+			return new ToolCallOutcome("{\"data\":{}}", false);
+		}).toBuilder().elicit("Read the movies?").build();
+		FakeLoggableSession session = FakeLoggableSession.answering(McpSchema.ElicitResult.Action.ACCEPT);
+
+		McpSchema.CallToolResult result = McpToolSpecifications
+			.statefulSpecification(tool, jsonMapper(), policy(Map.of()).withElicitation(asking()))
+			.callHandler()
+			.apply(UserApprovalTests.exchange(session, McpSchema.ClientCapabilities.builder().elicitation().build()),
+					McpSchema.CallToolRequest.builder("topRatedMovies").arguments(Map.of()).build());
+
+		assertThat(result.isError()).isFalse();
+		assertThat(session.requests).hasValue(1);
+		assertThat(calls).hasValue(1);
+	}
+
+	@Test
+	void statefulSpecification_elicitToolUnderADecliningClient_shouldLeaveTheToolUncalled() {
+		AtomicInteger calls = new AtomicInteger();
+		GATool tool = tool((arguments) -> {
+			calls.incrementAndGet();
+			return new ToolCallOutcome("{}", false);
+		}).toBuilder().elicit("Read the movies?").build();
+		FakeLoggableSession session = FakeLoggableSession.answering(McpSchema.ElicitResult.Action.DECLINE);
+
+		McpSchema.CallToolResult result = McpToolSpecifications
+			.statefulSpecification(tool, jsonMapper(), policy(Map.of()).withElicitation(asking()))
+			.callHandler()
+			.apply(UserApprovalTests.exchange(session, McpSchema.ClientCapabilities.builder().elicitation().build()),
+					McpSchema.CallToolRequest.builder("topRatedMovies").arguments(Map.of()).build());
+
+		assertThat(result.isError()).isTrue();
+		assertThat(((McpSchema.TextContent) result.content().getFirst()).text())
+			.startsWith("The user declined the call to topRatedMovies");
+		assertThat(calls).hasValue(0);
+	}
+
+	@Test
+	void specification_statelessElicitToolUnderSettingsThatDoNotAsk_shouldRunWithoutAsking() {
+		AtomicInteger calls = new AtomicInteger();
+		GATool tool = tool((arguments) -> {
+			calls.incrementAndGet();
+			return new ToolCallOutcome("{}", false);
+		}).toBuilder().elicit("Read the movies?").build();
+
+		McpSchema.CallToolResult result = McpToolSpecifications.specification(tool, jsonMapper(), policy(Map.of()))
+			.callHandler()
+			.apply(McpTransportContext.EMPTY,
+					McpSchema.CallToolRequest.builder("topRatedMovies").arguments(Map.of()).build());
+
+		assertThat(result.isError()).isFalse();
+		assertThat(calls).hasValue(1);
+	}
+
+	private static ElicitationSettings asking() {
+		return new ElicitationSettings(true, ElicitationSettings.DEFAULT_DECLINED_ANSWER,
+				ElicitationSettings.DEFAULT_CANCELLED_ANSWER, Duration.ofSeconds(20));
 	}
 
 	private static GATool tool(Function<Map<String, Object>, ToolCallOutcome> handler) {
