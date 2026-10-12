@@ -75,6 +75,8 @@ public final class GATool {
 
 	private final @Nullable List<String> scopes;
 
+	private final @Nullable String elicit;
+
 	private GATool(Builder builder, String name, String inputSchema,
 			Function<Map<String, @Nullable Object>, ToolCallOutcome> callHandler) {
 		this.name = name;
@@ -86,6 +88,7 @@ public final class GATool {
 		this.outputSchema = builder.outputSchema;
 		this.callHandler = callHandler;
 		this.scopes = builder.scopes;
+		this.elicit = builder.elicit;
 	}
 
 	/**
@@ -110,7 +113,8 @@ public final class GATool {
 			.openWorld(this.openWorld)
 			.outputSchema(this.outputSchema)
 			.callHandler(this.callHandler)
-			.scopes(this.scopes);
+			.scopes(this.scopes)
+			.elicit(this.elicit);
 	}
 
 	/**
@@ -194,6 +198,16 @@ public final class GATool {
 	}
 
 	/**
+	 * Returns the question the user reads before each call of this tool, which the MCP
+	 * starter asks through MCP elicitation on a transport that can ask, or {@code null}
+	 * for a tool that runs without asking.
+	 * @return the question, or {@code null}
+	 */
+	public @Nullable String elicit() {
+		return this.elicit;
+	}
+
+	/**
 	 * Runs one tool call.
 	 * @param arguments the arguments the caller sent
 	 * @return the text of the result and whether it is an error
@@ -230,6 +244,8 @@ public final class GATool {
 		private @Nullable Function<Map<String, @Nullable Object>, ToolCallOutcome> callHandler;
 
 		private @Nullable List<String> scopes;
+
+		private @Nullable String elicit;
 
 		private Builder() {
 		}
@@ -329,6 +345,17 @@ public final class GATool {
 		 */
 		public Builder scopes(@Nullable List<String> scopes) {
 			this.scopes = (scopes != null) ? List.copyOf(scopes) : null;
+			return this;
+		}
+
+		/**
+		 * Sets the question the user reads before each call. A tool built without it runs
+		 * without asking.
+		 * @param elicit the question, or {@code null}
+		 * @return this builder
+		 */
+		public Builder elicit(@Nullable String elicit) {
+			this.elicit = elicit;
 			return this;
 		}
 

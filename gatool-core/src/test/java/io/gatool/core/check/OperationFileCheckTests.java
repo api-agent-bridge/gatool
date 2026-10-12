@@ -201,9 +201,9 @@ class OperationFileCheckTests {
 	@Test
 	void check_toolThatPublishesAnOutputSchema_shouldReportTheSchemaTitleHintsAndScopes(@TempDir Path directory)
 			throws Exception {
-		// The five accessors this asserts are the fields the tool contract snapshot
-		// already records, so the check has to report the same ones the running
-		// application would publish.
+		// Five of the six accessors this asserts are the fields the tool contract
+		// snapshot already records, so the check has to report the same ones the
+		// running application would publish.
 		Path schema = schemaFile(directory);
 		Path mcp = folderWith(directory, "mcp", "TopRatedMovies.graphql",
 				"""
@@ -222,6 +222,7 @@ class OperationFileCheckTests {
 			assertThat(tool.outputSchema()).contains("\"topRatedMovies\"");
 			assertThat(tool.readOnly()).isTrue();
 			assertThat(tool.openWorld()).isNull();
+			assertThat(tool.elicit()).isNull();
 			assertThat(tool.scopes()).containsExactly("movies:read");
 		});
 	}
@@ -244,6 +245,23 @@ class OperationFileCheckTests {
 			assertThat(tool.readOnly()).isFalse();
 			assertThat(tool.openWorld()).isTrue();
 		});
+	}
+
+	@Test
+	void check_mutationWithAnElicitQuestion_shouldReportIt(@TempDir Path directory) throws Exception {
+		Path schema = schemaFile(directory);
+		Path mcp = folderWith(directory, "mcp", "AddReview.graphql", """
+				# Adds a review to a movie.
+				mutation AddReview($movieId: ID!, $score: Int!) @gatool(elicit: "Add this review?") {
+				  addReview(input: { movieId: $movieId, score: $score }) { review { id } }
+				}
+				""");
+
+		CheckResult result = OperationFileCheck.check(schema, List.of(mcp), List.of(), CheckSettings.defaults());
+
+		assertThat(result.passes()).isTrue();
+		assertThat(result.tools()).singleElement()
+			.satisfies((tool) -> assertThat(tool.elicit()).isEqualTo("Add this review?"));
 	}
 
 	@Test

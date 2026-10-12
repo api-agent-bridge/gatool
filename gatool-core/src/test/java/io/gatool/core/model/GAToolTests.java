@@ -79,6 +79,20 @@ class GAToolTests {
 		assertThat(copy.callHandler()).isSameAs(tool.callHandler());
 	}
 
+	@Test
+	void elicit_leftUnset_shouldStayNull() {
+		assertThat(tool(List.of()).elicit()).isNull();
+	}
+
+	@Test
+	void toBuilder_shouldKeepTheElicitQuestion() {
+		GATool tool = tool(List.of()).toBuilder().elicit("Read the movies?").build();
+
+		GATool copy = tool.toBuilder().build();
+
+		assertThat(copy.elicit()).isEqualTo("Read the movies?");
+	}
+
 	private static GATool tool(List<String> scopes) {
 		return GATool.builder()
 			.name("topRatedMovies")
