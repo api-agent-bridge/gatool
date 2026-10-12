@@ -1360,12 +1360,16 @@ the server silent with its process up. An application that declares its own
 `McpSyncServerCustomizer` keeps `immediateExecution(true)` in it, and startup
 stops while that setting is left out. With `gatool.mcp.stdio.elicitation=true`
 that setting backs off, so a tool marked `elicit` can ask the user; the
-configuration table says what the deployment accepts in return. In an
-application that keeps `spring.main.web-application-type=servlet` while it
-serves stdio, that property stops startup, because Spring AI's own customizer
-runs each tool call on the thread that reads stdin there, where the answer
-cannot be read. Serve stdio from an application without a web server, which is
-what GATool sets up by default.
+configuration table says what the deployment accepts in return. Under that
+property, startup stops where a customizer of the application's own sets
+`immediateExecution(true)`, because the setting holds each call on the thread
+that reads stdin, where the user's answer arrives; remove the setting from that
+customizer or leave the property off. In an application that keeps
+`spring.main.web-application-type=servlet` while it serves stdio, that property
+stops startup, because Spring AI's own customizer runs each tool call on the
+thread that reads stdin there, where the answer cannot be read. Serve stdio
+from an application without a web server, which is what GATool sets up by
+default.
 
 Under stdio, GATool sets `spring.main.web-application-type=none` and
 `spring.main.banner-mode=off` while those properties are unset, so the
@@ -1475,10 +1479,15 @@ The wait is bounded by `spring.ai.mcp.server.request-timeout`, 20 seconds by
 default, which Spring AI applies to every request the server sends to a
 client. Startup warns when a served tool asks and the value is under 60
 seconds; set it to the time a person needs, such as `5m`. The client's own
-tool-call timeout bounds the wait as well, 20 seconds by default in the MCP
-Java SDK client and Spring AI's client, and an agent host decides its own.
-While the user decides, the call holds the request thread, which is how a
-Spring AI tool that elicits waits as well; Tomcat's pool, 200 threads by
+tool-call timeout decides how long the model waits for the result: 20 seconds
+by default in the MCP Java SDK client and Spring AI's client, and an agent
+host sets its own. Set it at or above `spring.ai.mcp.server.request-timeout`.
+The server keeps asking after the client gave up, until the user answers, the
+request timeout ends the wait or the client closes the stream. An accept that
+arrives after the client gave up still runs the operation, and its result goes
+unread. If the model retried the call in the meantime, the operation runs
+twice. While the user decides, the call holds the request thread, which is how
+a Spring AI tool that elicits waits as well; Tomcat's pool, 200 threads by
 default, bounds how many users decide at once.
 
 Three deployments cannot ask: the stateless server, whose handler runs without
