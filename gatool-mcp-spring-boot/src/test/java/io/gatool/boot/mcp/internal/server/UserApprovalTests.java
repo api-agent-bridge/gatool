@@ -43,6 +43,10 @@ class UserApprovalTests {
 					+ "Ask the user whether to try again.",
 			Duration.ofSeconds(20));
 
+	private static final String UNSUPPORTED_ANSWER = "The tool topRatedMovies asks the user before it runs, and "
+			+ "this client did not declare the form elicitation capability, so the API was not called. Connect with "
+			+ "a client that supports MCP form elicitation.";
+
 	@Test
 	void ask_clientThatAccepts_shouldSendTheQuestionWithTheArgumentsAndAccept() {
 		FakeLoggableSession session = FakeLoggableSession.answering(McpSchema.ElicitResult.Action.ACCEPT);
@@ -91,10 +95,32 @@ class UserApprovalTests {
 
 		assertThat(verdict.decision()).isEqualTo(UserApproval.Decision.UNSUPPORTED);
 		assertThat(verdict.outcome()).isEqualTo("elicitation-unsupported");
-		assertThat(verdict.answer()).isEqualTo("The tool topRatedMovies asks the user before it runs, and this "
-				+ "client did not declare the elicitation capability, so the API was not called. Connect with a "
-				+ "client that supports MCP elicitation.");
+		assertThat(verdict.answer()).isEqualTo(UNSUPPORTED_ANSWER);
 		assertThat(session.requests).hasValue(0);
+	}
+
+	@Test
+	void ask_clientWithUrlElicitationOnly_shouldAnswerUnsupported() {
+		FakeLoggableSession session = FakeLoggableSession.answering(McpSchema.ElicitResult.Action.ACCEPT);
+
+		UserApproval.Verdict verdict = UserApproval.ask(tool("Read the movies?"), Map.of(),
+				exchange(session, McpSchema.ClientCapabilities.builder().elicitation(false, true).build()), SETTINGS);
+
+		assertThat(verdict.decision()).isEqualTo(UserApproval.Decision.UNSUPPORTED);
+		assertThat(verdict.outcome()).isEqualTo("elicitation-unsupported");
+		assertThat(verdict.answer()).isEqualTo(UNSUPPORTED_ANSWER);
+		assertThat(session.requests).hasValue(0);
+	}
+
+	@Test
+	void ask_clientWithFormAndUrlElicitation_shouldAsk() {
+		FakeLoggableSession session = FakeLoggableSession.answering(McpSchema.ElicitResult.Action.ACCEPT);
+
+		UserApproval.Verdict verdict = UserApproval.ask(tool("Read the movies?"), Map.of(),
+				exchange(session, McpSchema.ClientCapabilities.builder().elicitation(true, true).build()), SETTINGS);
+
+		assertThat(verdict.decision()).isEqualTo(UserApproval.Decision.ACCEPTED);
+		assertThat(session.requests).hasValue(1);
 	}
 
 	@Test

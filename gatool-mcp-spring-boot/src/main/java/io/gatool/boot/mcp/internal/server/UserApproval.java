@@ -79,11 +79,10 @@ final class UserApproval {
 		if (question == null) {
 			return Verdict.ACCEPTED;
 		}
-		if (exchange == null || exchange.getClientCapabilities() == null
-				|| exchange.getClientCapabilities().elicitation() == null) {
+		if (exchange == null || !canAskInFormMode(exchange)) {
 			return new Verdict(Decision.UNSUPPORTED, "The tool " + tool.name()
-					+ " asks the user before it runs, and this client did not declare the elicitation capability, "
-					+ "so the API was not called. Connect with a client that supports MCP elicitation.",
+					+ " asks the user before it runs, and this client did not declare the form elicitation "
+					+ "capability, so the API was not called. Connect with a client that supports MCP form elicitation.",
 					"elicitation-unsupported");
 		}
 		McpSchema.ElicitResult result;
@@ -148,6 +147,18 @@ final class UserApproval {
 	static String answer(String template, String toolName, String fallback) {
 		String text = template.isBlank() ? fallback : template;
 		return text.replace(TOOL_PLACEHOLDER, toolName);
+	}
+
+	// Mirrors the SDK's rule in McpAsyncServerExchange, where elicitation: {} is
+	// equivalent to elicitation: { form: {} }, so a client that declared URL mode
+	// alone cannot be asked in form mode.
+	private static boolean canAskInFormMode(McpSyncServerExchange exchange) {
+		McpSchema.ClientCapabilities capabilities = exchange.getClientCapabilities();
+		if (capabilities == null || capabilities.elicitation() == null) {
+			return false;
+		}
+		McpSchema.ClientCapabilities.Elicitation elicitation = capabilities.elicitation();
+		return elicitation.form() != null || elicitation.url() == null;
 	}
 
 	// The sync exchange blocks on a Mono with the request timeout, and Reactor wraps the
