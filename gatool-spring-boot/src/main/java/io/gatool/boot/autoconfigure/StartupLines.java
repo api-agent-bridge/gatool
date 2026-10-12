@@ -158,7 +158,8 @@ final class StartupLines {
 				.append(" (about ")
 				.append(tokens)
 				.append(" tokens)")
-				.append(describeScopes(tool.scopes(), toolExposureType, baselineScopes));
+				.append(describeScopes(tool.scopes(), toolExposureType, baselineScopes))
+				.append((tool.elicit() != null) ? ", asks the user before each call" : "");
 		}
 		// The total is per exposure type, as the listing is, because the two exposure
 		// types carry their own tool lists and an agent reads one of them.

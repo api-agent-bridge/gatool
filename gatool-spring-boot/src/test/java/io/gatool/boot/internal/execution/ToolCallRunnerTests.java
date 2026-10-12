@@ -103,6 +103,28 @@ class ToolCallRunnerTests {
 	}
 
 	@Test
+	void tool_operationWithAnElicitQuestion_shouldCarryTheQuestion() {
+		ToolCallRunner runner = ToolCallRunner.builder(executor(data()), this.writer)
+			.maxCharacters(MAX_CHARACTERS)
+			.build();
+		ToolOperation operation = ToolOperation.builder()
+			.toolName("topRatedMovies")
+			.operationName("TopRatedMovies")
+			.operationType(OperationType.QUERY)
+			.description("Returns the highest-rated movies, best first.")
+			.printedDocument(DOCUMENT)
+			.inputSchema(EMPTY_VARIABLES_SCHEMA)
+			.location("file:/gatool/mcp/TopRatedMovies.graphql")
+			.toolExposureTypes(Set.of(ToolExposureType.MCP))
+			.elicit("Read the movies?")
+			.build();
+
+		GATool tool = runner.toolFor(operation);
+
+		assertThat(tool.elicit()).isEqualTo("Read the movies?");
+	}
+
+	@Test
 	void run_responseWithDataAlone_shouldReturnTheTextWithoutAnError() {
 		ToolCallRunner runner = ToolCallRunner.builder(executor(data()), this.writer)
 			.maxCharacters(MAX_CHARACTERS)

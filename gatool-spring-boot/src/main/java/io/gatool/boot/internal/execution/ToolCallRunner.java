@@ -164,6 +164,7 @@ public final class ToolCallRunner {
 			.outputSchema(operation.outputSchema())
 			.callHandler(handler)
 			.scopes(operation.scopes())
+			.elicit(operation.elicit())
 			.build();
 	}
 

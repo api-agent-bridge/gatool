@@ -139,6 +139,16 @@ public class GAToolMcpProperties {
 		private boolean logToStderr = true;
 
 		/**
+		 * Whether a stdio server runs each tool call on the MCP SDK's thread pool, so a
+		 * tool marked elicit can ask the user. Off, GATool runs each call on the thread
+		 * that reads stdin, which keeps two answers from reaching the SDK's one outbound
+		 * queue at once, and a tool that asks the user would wait for an answer that
+		 * thread cannot read. On, the deployment accepts that race until the SDK release
+		 * after 2.0.1 ships the repair of java-sdk issue 686.
+		 */
+		private boolean elicitation;
+
+		/**
 		 * Returns the scopes the process that started this server holds, which satisfy
 		 * tools that require scopes.
 		 * @return the value of {@code gatool.mcp.stdio.granted-scopes}
@@ -172,6 +182,24 @@ public class GAToolMcpProperties {
 		 */
 		public void setLogToStderr(boolean logToStderr) {
 			this.logToStderr = logToStderr;
+		}
+
+		/**
+		 * Returns whether a stdio server runs each tool call on the MCP SDK's thread
+		 * pool, so a tool marked elicit can ask the user.
+		 * @return the value of {@code gatool.mcp.stdio.elicitation}
+		 */
+		public boolean isElicitation() {
+			return this.elicitation;
+		}
+
+		/**
+		 * Sets whether a stdio server runs each tool call on the MCP SDK's thread pool,
+		 * so a tool marked elicit can ask the user.
+		 * @param elicitation the value of {@code gatool.mcp.stdio.elicitation}
+		 */
+		public void setElicitation(boolean elicitation) {
+			this.elicitation = elicitation;
 		}
 
 	}
