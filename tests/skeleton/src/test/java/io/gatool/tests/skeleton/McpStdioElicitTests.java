@@ -18,6 +18,7 @@ package io.gatool.tests.skeleton;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 
 import io.modelcontextprotocol.common.McpTransportContext;
@@ -45,9 +46,15 @@ import io.gatool.boot.mcp.autoconfigure.GAToolMcpAutoConfiguration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * A tool marked elicit on a stdio server with gatool.mcp.stdio.elicitation on: the
- * handler asks through the exchange it is given, and a handler called without one answers
- * the unsupported text.
+ * A tool marked elicit in a context configured for stdio with
+ * {@code gatool.mcp.stdio.elicitation} on, with the tool handler called directly: each
+ * test takes the stateful handler from the context and calls it with an exchange of its
+ * own, so the call stays inside this JVM. The handler asks through the exchange it is
+ * given, and a handler called without one answers the unsupported text.
+ *
+ * <p>
+ * {@link McpStdioElicitOverPipesTests} runs the same tool end to end over the pipes of a
+ * second JVM.
  */
 class McpStdioElicitTests {
 
@@ -66,24 +73,32 @@ class McpStdioElicitTests {
 		.withPropertyValues("gatool.api.url=" + MoviesApiServer.graphQlUrl());
 
 	@Test
-	void callTool_userAccepts_shouldReachTheApi() {
+	void callTool_userAccepts_shouldAskWithTheQuestionAndTheArgumentsAndReachTheApi() {
+		AnsweringSession session = new AnsweringSession(
+				() -> Mono.just(new McpSchema.ElicitResult(McpSchema.ElicitResult.Action.ACCEPT, Map.of(), null)));
 		this.contextRunner.run((context) -> {
-			McpSchema.CallToolResult result = call(context, exchange(
-					() -> Mono.just(new McpSchema.ElicitResult(McpSchema.ElicitResult.Action.ACCEPT, Map.of(), null))),
-					"topRatedMovies", Map.of("first", 1));
+			McpSchema.CallToolResult result = call(context, exchange(session), "topRatedMovies", Map.of("first", 1));
 			assertThat(result.isError()).as(firstText(result)).isFalse();
 			assertThat(firstText(result)).contains("Signal from Kepler");
+		});
+
+		assertThat(session.sent()).singleElement().satisfies((sent) -> {
+			assertThat(sent.method()).isEqualTo("elicitation/create");
+			assertThat(sent.params()).isInstanceOfSatisfying(McpSchema.ElicitFormRequest.class,
+					(request) -> assertThat(request.message())
+						.isEqualTo("Read the top rated movies?\n\n{\"first\":1}"));
 		});
 	}
 
 	@Test
 	void callTool_userDeclines_shouldAnswerTheDeclinedSentence() {
+		AnsweringSession session = new AnsweringSession(
+				() -> Mono.just(new McpSchema.ElicitResult(McpSchema.ElicitResult.Action.DECLINE, Map.of(), null)));
 		this.contextRunner.run((context) -> {
-			McpSchema.CallToolResult result = call(context, exchange(
-					() -> Mono.just(new McpSchema.ElicitResult(McpSchema.ElicitResult.Action.DECLINE, Map.of(), null))),
-					"topRatedMovies", Map.of("first", 1));
+			McpSchema.CallToolResult result = call(context, exchange(session), "topRatedMovies", Map.of("first", 1));
 			assertThat(result.isError()).isTrue();
-			assertThat(firstText(result)).startsWith("The user declined the call to topRatedMovies");
+			assertThat(firstText(result)).isEqualTo("The user declined the call to topRatedMovies, so the API was not "
+					+ "called. Ask the user what to do next.");
 		});
 	}
 
@@ -92,7 +107,9 @@ class McpStdioElicitTests {
 		this.contextRunner.run((context) -> {
 			McpSchema.CallToolResult result = call(context, null, "topRatedMovies", Map.of("first", 1));
 			assertThat(result.isError()).isTrue();
-			assertThat(firstText(result)).contains("did not declare the form elicitation capability");
+			assertThat(firstText(result)).isEqualTo("The tool topRatedMovies asks the user before it runs, and this "
+					+ "client did not declare the form elicitation capability, so the API was not called. Connect "
+					+ "with a client that supports MCP form elicitation.");
 		});
 	}
 
@@ -110,8 +127,8 @@ class McpStdioElicitTests {
 			.apply(exchange, McpSchema.CallToolRequest.builder(tool).arguments(arguments).build());
 	}
 
-	private static McpSyncServerExchange exchange(Supplier<Mono<?>> answer) {
-		return new McpSyncServerExchange(new McpAsyncServerExchange("session-1", new AnsweringSession(answer),
+	private static McpSyncServerExchange exchange(AnsweringSession session) {
+		return new McpSyncServerExchange(new McpAsyncServerExchange("session-1", session,
 				McpSchema.ClientCapabilities.builder().elicitation().build(),
 				McpSchema.Implementation.builder("test-client", "1").build(), McpTransportContext.EMPTY,
 				new DefaultJsonSchemaValidator()));
@@ -121,17 +138,38 @@ class McpStdioElicitTests {
 		return ((McpSchema.TextContent) result.content().getFirst()).text();
 	}
 
+	/**
+	 * One request the handler sent to the client through the session.
+	 *
+	 * @param method the JSON-RPC method
+	 * @param params the parameters of the request
+	 */
+	private record SentRequest(String method, Object params) {
+
+	}
+
+	/**
+	 * A session that records each request the handler sends and answers it from the
+	 * supplier.
+	 */
 	private static final class AnsweringSession implements McpLoggableSession {
 
 		private final Supplier<Mono<?>> answer;
+
+		private final List<SentRequest> sent = new CopyOnWriteArrayList<>();
 
 		AnsweringSession(Supplier<Mono<?>> answer) {
 			this.answer = answer;
 		}
 
+		List<SentRequest> sent() {
+			return this.sent;
+		}
+
 		@Override
 		@SuppressWarnings("unchecked")
 		public <T> Mono<T> sendRequest(String method, Object requestParams, TypeRef<T> typeRef) {
+			this.sent.add(new SentRequest(method, requestParams));
 			return (Mono<T>) this.answer.get();
 		}
 

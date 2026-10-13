@@ -107,7 +107,8 @@ class McpElicitOverHttpTests {
 				.callTool(McpSchema.CallToolRequest.builder("topRatedMovies").arguments(Map.of("first", 1)).build());
 
 			assertThat(result.isError()).isTrue();
-			assertThat(text(result)).startsWith("The user dismissed the confirmation for topRatedMovies");
+			assertThat(text(result)).isEqualTo("The user dismissed the confirmation for topRatedMovies without "
+					+ "answering, so the API was not called. Ask the user whether to try again.");
 		}
 		assertThat(MoviesApiServer.graphQlCalls()).isEqualTo(before);
 	}
@@ -124,8 +125,9 @@ class McpElicitOverHttpTests {
 				.callTool(McpSchema.CallToolRequest.builder("topRatedMovies").arguments(Map.of("first", 1)).build());
 
 			assertThat(result.isError()).isTrue();
-			assertThat(text(result)).contains("did not declare the form elicitation capability")
-				.contains("the API was not called");
+			assertThat(text(result)).isEqualTo("The tool topRatedMovies asks the user before it runs, and this "
+					+ "client did not declare the form elicitation capability, so the API was not called. Connect "
+					+ "with a client that supports MCP form elicitation.");
 		}
 		assertThat(MoviesApiServer.graphQlCalls()).isEqualTo(before);
 	}

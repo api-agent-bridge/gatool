@@ -155,6 +155,36 @@ class McpElicitStartupTests {
 	}
 
 	@Test
+	void startup_stdioWithoutTheStdioPropertyUnderTheIgnoreProperty_shouldStartAndWarnNamingTheTool(
+			CapturedOutput output) {
+		this.contextRunner
+			.withPropertyValues("spring.ai.mcp.server.protocol=STREAMABLE", "spring.ai.mcp.server.stdio=true",
+					"gatool.elicitation.ignore-where-unsupported=true")
+			.run((context) -> assertThat(context).hasNotFailed());
+
+		assertThat(output).contains("gatool.elicitation.ignore-where-unsupported is true, so these tools run "
+				+ "without asking the user: topRatedMovies." + System.lineSeparator());
+	}
+
+	@Test
+	void startup_stdioElicitationSetToFalse_shouldKeepTheReaderThreadCustomizerAndTheCheck() {
+		// The word false is what the customizer's condition compares with, so setting it
+		// keeps the customizer, as leaving the property unset does. The ignore property
+		// lets the elicit tool past the stop for stdio without a channel.
+		this.stdioServer
+			.withPropertyValues("gatool.mcp.stdio.elicitation=false",
+					"gatool.elicitation.ignore-where-unsupported=true")
+			.run((context) -> {
+				assertThat(context).hasNotFailed();
+				assertThat(context).hasBean("gaToolStdioMcpSyncServerCustomizer");
+				assertThat(context).hasBean("gaToolStdioImmediateExecutionStartupCheck");
+				assertThat(ImmediateExecution.of(context.getBean(McpSyncServer.class)))
+					.as("immediateExecution on the stdio server bean while gatool.mcp.stdio.elicitation is false")
+					.isTrue();
+			});
+	}
+
+	@Test
 	void startup_stdioWithTheStdioProperty_shouldDropTheReaderThreadCustomizerKeepTheCheckAndWarn(
 			CapturedOutput output) {
 		this.stdioServer.withPropertyValues("gatool.mcp.stdio.elicitation=true").run((context) -> {
@@ -224,6 +254,17 @@ class McpElicitStartupTests {
 	}
 
 	@Test
+	void startup_statefulHttpUnderAShortRequestTimeout_shouldWarnNamingTheProperty(CapturedOutput output) {
+		this.contextRunner
+			.withPropertyValues("spring.ai.mcp.server.protocol=STREAMABLE", "spring.ai.mcp.server.request-timeout=5s")
+			.run((context) -> assertThat(context).hasNotFailed());
+
+		assertThat(output).contains("GATool serves MCP over stateful Streamable HTTP")
+			.contains("1 tool asks the user before each call, and spring.ai.mcp.server.request-timeout gives the "
+					+ "user 5 seconds to answer; set it to the time a person needs, such as 5m.");
+	}
+
+	@Test
 	void startup_askingTransportUnderTheDefaultRequestTimeout_shouldWarnWithTwentySeconds(CapturedOutput output) {
 		this.contextRunner
 			.withPropertyValues("spring.ai.mcp.server.protocol=STREAMABLE", "spring.ai.mcp.server.stdio=true",
@@ -241,6 +282,16 @@ class McpElicitStartupTests {
 			.run((context) -> assertThat(context).hasNotFailed());
 
 		assertThat(output).doesNotContain("gives the user");
+	}
+
+	@Test
+	void startup_askingTransportUnderARequestTimeoutOfSixtySeconds_shouldStayQuiet(CapturedOutput output) {
+		// The warning fires below 60 seconds, so 60 seconds itself stays quiet.
+		this.contextRunner
+			.withPropertyValues("spring.ai.mcp.server.protocol=STREAMABLE", "spring.ai.mcp.server.request-timeout=60s")
+			.run((context) -> assertThat(context).hasNotFailed());
+
+		assertThat(output).contains("GATool serves MCP over stateful Streamable HTTP").doesNotContain("gives the user");
 	}
 
 	@Test

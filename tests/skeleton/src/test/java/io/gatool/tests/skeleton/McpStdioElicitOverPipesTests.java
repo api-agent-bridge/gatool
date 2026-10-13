@@ -16,20 +16,14 @@
 
 package io.gatool.tests.skeleton;
 
-import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.client.transport.ServerParameters;
-import io.modelcontextprotocol.client.transport.StdioClientTransport;
-import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
-import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,11 +32,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>
  * The server runs as a second JVM with {@code gatool.mcp.stdio.elicitation} on, launched
- * the way {@link McpOverStdioTests} launches it. Under that property GATool's stdio
- * customizer backs off, so the SDK's default thread pool runs the tool call, and the
- * answer the client writes to the server's standard input reaches the handler waiting for
- * it. This class is the end-to-end proof that the property makes elicitation work over
- * stdio.
+ * by {@link StdioServerLauncher} as {@link McpOverStdioTests} launches it. Under that
+ * property GATool's stdio customizer backs off, so the SDK's default thread pool runs the
+ * tool call, and the answer the client writes to the server's standard input reaches the
+ * handler waiting for it. This class is the end-to-end proof that the property makes
+ * elicitation work over stdio.
  */
 class McpStdioElicitOverPipesTests {
 
@@ -85,23 +79,13 @@ class McpStdioElicitOverPipesTests {
 	}
 
 	private static McpSyncClient client(Function<McpSchema.ElicitFormRequest, McpSchema.ElicitResult> handler) {
-		ServerParameters parameters = ServerParameters.builder(javaCommand())
-			.args("-cp", System.getProperty("java.class.path"), StdioServerApplication.class.getName(),
-					"--spring.ai.mcp.server.stdio=true", "--spring.application.name=gatool-skeleton-tests",
-					"--gatool.api.url=" + MoviesApiServer.graphQlUrl(),
-					"--gatool.api.schema.location=classpath:io/gatool/fixtures/movies/movies.graphqls",
-					"--gatool.mcp.operations.locations=classpath:gatool/elicit/", "--gatool.mcp.stdio.elicitation=true")
-			.build();
-		return McpClient
-			.sync(new StdioClientTransport(parameters, new JacksonMcpJsonMapper(JsonMapper.builder().build())))
+		return StdioServerLauncher
+			.client("--gatool.mcp.operations.locations=classpath:gatool/elicit/",
+					"--gatool.in-process.operations.locations=optional:classpath*:gatool/none/",
+					"--gatool.mcp.stdio.elicitation=true")
 			.capabilities(McpSchema.ClientCapabilities.builder().elicitation().build())
 			.elicitation(handler)
-			.requestTimeout(Duration.ofSeconds(30))
 			.build();
-	}
-
-	private static String javaCommand() {
-		return System.getProperty("java.home") + "/bin/java";
 	}
 
 	private static String text(McpSchema.CallToolResult result) {
