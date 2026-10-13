@@ -9,8 +9,9 @@
   and on stdio with `gatool.mcp.stdio.elicitation=true`, and runs the
   operation after an accept. A decline, a cancel, a client without the form
   elicitation capability, a timeout and a failure each answer a tool error,
-  and the API stays uncalled. The README section "Asking the user before a
-  call" has the five sentences.
+  and the API stays uncalled. The README section
+  [Asking the user before a call](README.md#asking-the-user-before-a-call) has
+  the five sentences.
 - Startup now stops where such a tool is served by the stateless server, by
   the in-process starter, or by stdio without that property, unless
   `gatool.elicitation.ignore-where-unsupported=true` serves it without asking.
@@ -36,9 +37,16 @@
 - `gatool.elicitation.ignore-where-unsupported`, off by default, lets a
   deployment that cannot ask start with such tools running without asking.
 - `gatool.mcp.stdio.elicitation`, off by default, runs stdio tool calls on
-  the MCP SDK's thread pool so a tool can ask, stops startup where a servlet
-  application serves stdio, and leaves with the SDK release that repairs
-  java-sdk issue 686.
+  the MCP SDK's thread pool so a tool can ask, and leaves with the SDK
+  release that repairs java-sdk issue 686. While it is true, startup stops
+  where a servlet application serves stdio and where an application's own
+  customizer sets `immediateExecution(true)`. A value spelled `off` reads as
+  false while GATool's own customizer stays out, and startup stops until the
+  value is written `false`. In a servlet application that serves stdio, the
+  stop for a tool marked `elicit` without the property names the fix as
+  serving stdio without a web server, with
+  `spring.main.web-application-type=none`, and then setting the property,
+  because the property alone meets the servlet stop.
 
 ### Fixes
 

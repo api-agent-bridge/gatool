@@ -209,9 +209,10 @@ as the same GraphQL envelope the MCP path returns.
   definition; a file that leaves it out publishes the tool without the hint.
 - **The question the user reads** comes from `@gatool(elicit: "Delete this
   order?")`. On the stateful Streamable HTTP transport, and on stdio with
-  `gatool.mcp.stdio.elicitation=true`, GATool asks the user that question
-  through MCP elicitation before each call and runs the operation after an
-  accept. A blank question is refused the way a blank title is. The section
+  `gatool.mcp.stdio.elicitation=true` in an application without a web server,
+  GATool asks the user that question through MCP elicitation before each call
+  and runs the operation after an accept. A blank question is refused the way
+  a blank title is. The section
   [Asking the user before a call](#asking-the-user-before-a-call) has the
   rest.
 - **The result** is the `data` and `errors` of the GraphQL response as JSON
@@ -814,9 +815,9 @@ two response caps apply after the API computes the result.
 | `gatool.mcp.security.resource` | The canonical resource URI the metadata publishes; unset publishes the request's URL |
 | `gatool.mcp.stdio.granted-scopes` | The scopes the process that started a stdio server holds, which tools requiring scopes are checked against |
 | `gatool.mcp.stdio.log-to-stderr` | Whether a stdio server writes its log to stderr, on by default. stderr carries WARN and above until `logging.threshold.console` sets another threshold, and the log is written without making the server wait, so a host that leaves stderr unread loses lines while the server keeps answering, and a WARN line says how many once lines get through again. It applies on Logback, while the application leaves `logging.console.enabled` unset and the logging configuration to Spring Boot's defaults. On Log4j2 startup, it prints a one-line message to stderr that the log is lost, while the application leaves the log file and `logging.config` unset. On `java.util.logging` a log file leaves the stderr log on, and the application's own `logging.config` is what changes it |
-| `gatool.mcp.stdio.elicitation` | Whether a stdio server runs each tool call on the MCP SDK's thread pool so a tool marked `elicit` can ask the user, off by default. On, GATool's reader-thread setting backs off and the deployment accepts the race of java-sdk issue 686 until the SDK release after 2.0.1 ships its repair; startup warns once |
+| `gatool.mcp.stdio.elicitation` | Whether a stdio server runs each tool call on the MCP SDK's thread pool so a tool marked `elicit` can ask the user, off by default. On, GATool's reader-thread setting backs off and the deployment accepts the race of java-sdk issue 686 until the SDK release after 2.0.1 ships its repair; startup warns once. On, startup also stops in a servlet application that serves stdio, and where an application's own customizer sets `immediateExecution(true)`. A value spelled `off` reads as false while GATool's reader-thread customizer stays out, so startup stops; write `false` |
 | `gatool.elicitation.declined-answer` | The sentence the model reads after the user declined, with `{tool}` for the tool name. The default is in [Asking the user before a call](#asking-the-user-before-a-call) |
-| `gatool.elicitation.cancelled-answer` | The sentence the model reads after the user dismissed the dialog, with `{tool}` for the tool name |
+| `gatool.elicitation.cancelled-answer` | The sentence the model reads after the user dismissed the dialog, with `{tool}` for the tool name. The default is in [Asking the user before a call](#asking-the-user-before-a-call) |
 | `gatool.elicitation.ignore-where-unsupported` | Whether a deployment that cannot ask, the stateless server, the in-process starter and stdio without `gatool.mcp.stdio.elicitation`, starts with the tools marked `elicit` running without asking, off by default. Off, startup fails and names the tools |
 | `gatool.inputs.scalar-schemas.<Name>` | The JSON Schema fragment to publish for a custom scalar |
 | `gatool.inputs.send-explicit-nulls` | Whether a null argument for a variable that declares a default reaches the GraphQL API as an explicit null, off by default; a null for a variable without a default is sent either way |
@@ -956,7 +957,14 @@ line says how many such answers were left out since the last one; a refused
 credential and a redirect are written on every call. A `4xx` stays at DEBUG,
 because the model reads it and can act on it: it corrects the call, or sends
 the same one again after a `408`, a `425` or a `429`, where it reads that a
-later call may succeed, as it does for a `5xx`.
+later call may succeed, as it does for a `5xx`. A confirmation that fails
+reaches the log at ERROR with its exception, and so does one that ends because
+the client disconnected while the handler waited; the model reads that the
+confirmation failed, without the cause. An answer that arrives after the
+request timeout meets a request id the server has dropped: the MCP SDK logs
+`Unexpected response for unknown id` at ERROR on the server and answers the
+client with JSON-RPC error -32603, which the client logs at WARN. The API stays
+uncalled, so an operator who reads that ERROR line is looking at a late answer.
 
 Four Spring AI settings take a default from GATool while the application leaves
 them unset, and the application's own value wins: `spring.ai.mcp.server.protocol`
@@ -1359,17 +1367,18 @@ answer emitted beside another is dropped, which closes the transport and leaves
 the server silent with its process up. An application that declares its own
 `McpSyncServerCustomizer` keeps `immediateExecution(true)` in it, and startup
 stops while that setting is left out. With `gatool.mcp.stdio.elicitation=true`
-that setting backs off, so a tool marked `elicit` can ask the user; the
-configuration table says what the deployment accepts in return. Under that
-property, startup stops where a customizer of the application's own sets
-`immediateExecution(true)`, because the setting holds each call on the thread
-that reads stdin, where the user's answer arrives; remove the setting from that
-customizer or leave the property off. In an application that keeps
-`spring.main.web-application-type=servlet` while it serves stdio, that property
-stops startup, because Spring AI's own customizer runs each tool call on the
-thread that reads stdin there, where the answer cannot be read. Serve stdio
-from an application without a web server, which is what GATool sets up by
-default.
+that setting backs off, so a tool marked `elicit` can ask the user. In
+return, two answers reaching stdout at once can close the transport (java-sdk
+issue 686) until the SDK release after 2.0.1 ships its repair, and startup
+warns once. Under that property, startup stops where a customizer of the
+application's own sets `immediateExecution(true)`, because the setting holds
+each call on the thread that reads stdin, where the user's answer arrives;
+remove the setting from that customizer or leave the property off. In an
+application that keeps `spring.main.web-application-type=servlet` while it
+serves stdio, `gatool.mcp.stdio.elicitation` stops startup, because Spring
+AI's own customizer runs each tool call on the thread that reads stdin there,
+where the answer cannot be read. Serve stdio from an application without a web
+server, which is what GATool sets up by default.
 
 Under stdio, GATool sets `spring.main.web-application-type=none` and
 `spring.main.banner-mode=off` while those properties are unset, so the
@@ -1459,15 +1468,17 @@ back as a tool error, without the `403` challenge above.
 A tool marked `@gatool(elicit: "...")` asks the user before it runs. GATool
 sends an MCP `elicitation/create` request whose message is the question,
 followed by a blank line and the call's arguments as compact JSON, cut at
-1,000 characters. The form carries the message alone, so the client shows it
-with Accept, Decline and Cancel. Accept runs the operation; every other ending
-answers a tool error, and the API stays uncalled:
+1,000 characters. A message that was cut ends with a space and `[cut]`. A call
+without arguments, or with arguments Jackson cannot write, shows the question
+alone. The form carries the message alone, so the client shows it with Accept,
+Decline and Cancel. Accept runs the operation; every other ending answers a
+tool error, and the API stays uncalled:
 
 | Ending | What the model reads |
 | --- | --- |
 | The client lacks the form elicitation capability | The tool `{tool}` asks the user before it runs, and this client did not declare the form elicitation capability, so the API was not called. Connect with a client that supports MCP form elicitation. |
 | The user declined | `gatool.elicitation.declined-answer`, by default: The user declined the call to `{tool}`, so the API was not called. Ask the user what to do next. |
-| The user dismissed the dialog | `gatool.elicitation.cancelled-answer`, by default: The user dismissed the confirmation for `{tool}` without answering, so the API was not called. Ask the user whether to try again. |
+| The user dismissed the dialog, or the answer left out `action`, which the SDK reads as cancel | `gatool.elicitation.cancelled-answer`, by default: The user dismissed the confirmation for `{tool}` without answering, so the API was not called. Ask the user whether to try again. |
 | The user did not answer in time | The user did not answer the confirmation for `{tool}` within `{timeout}` (spring.ai.mcp.server.request-timeout), so the API was not called. |
 | The request failed | The confirmation for `{tool}` failed before the user could answer, so the API was not called. |
 
@@ -1477,27 +1488,33 @@ user as text under the question; a bearer token among them is redacted.
 
 The wait is bounded by `spring.ai.mcp.server.request-timeout`, 20 seconds by
 default, which Spring AI applies to every request the server sends to a
-client. Startup warns when a served tool asks and the value is under 60
-seconds; set it to the time a person needs, such as `5m`. The client's own
-tool-call timeout decides how long the model waits for the result: 20 seconds
-by default in the MCP Java SDK client and Spring AI's client, and an agent
-host sets its own. Set it at or above `spring.ai.mcp.server.request-timeout`.
-The server keeps asking after the client gave up, until the user answers, the
-request timeout ends the wait or the client closes the stream. An accept that
-arrives after the client gave up still runs the operation, and its result goes
-unread. If the model retried the call in the meantime, the operation runs
-twice. While the user decides, the call holds the request thread, which is how
-a Spring AI tool that elicits waits as well; Tomcat's pool, 200 threads by
-default, bounds how many users decide at once.
+client. The timeout answer names that value as `{timeout}`: in whole seconds
+from one second up, such as 20 seconds or 1 second, and in milliseconds below
+one second, such as 500 milliseconds. Startup warns when a served tool asks
+and the value is under 60 seconds; set it to the time a person needs, such as
+`5m`. The client's own tool-call timeout decides how long the model waits for
+the result: 20 seconds by default in the MCP Java SDK client and Spring AI's
+client, and an agent host sets its own. Set it at or above
+`spring.ai.mcp.server.request-timeout`. The server keeps asking after the
+client gave up, until the user answers, the request timeout ends the wait or
+the client closes the stream. An accept that arrives after the client gave up
+still runs the operation, and its result goes unread. If the model retried the
+call in the meantime, the user is asked again, and the operation runs twice
+where the user accepts both questions. While the user decides, the call holds
+the request thread, which is how a Spring AI tool that elicits waits as well;
+Tomcat's pool, 200 threads by default, bounds how many users decide at once.
 
 Three deployments cannot ask: the stateless server, whose handler runs without
 an exchange; the in-process starter, whose tools answer a `ChatClient` in the
 same JVM; and stdio while `gatool.mcp.stdio.elicitation` is off. Startup
-stops there naming the tools and the fix. With
-`gatool.elicitation.ignore-where-unsupported=true` the application starts,
-those tools run without asking, and startup warns once naming them. A file
-exposed to both exposure types asks on the MCP side and needs that property on
-the in-process side.
+stops there naming the tools and the fix. In a servlet application that serves
+stdio, the fix is to serve stdio without a web server, with
+`spring.main.web-application-type=none`, and then set
+`gatool.mcp.stdio.elicitation=true`, because the property alone meets the
+servlet stop. With `gatool.elicitation.ignore-where-unsupported=true` the
+application starts, those tools run without asking, and startup warns once
+naming them. A file exposed to both exposure types asks on the MCP side and
+needs that property on the in-process side.
 
 This is form-mode elicitation of MCP 2025-11-25. The 2026-07-28 revision
 removes `elicitation/create` in favour of Multi Round-Trip Requests, which a
