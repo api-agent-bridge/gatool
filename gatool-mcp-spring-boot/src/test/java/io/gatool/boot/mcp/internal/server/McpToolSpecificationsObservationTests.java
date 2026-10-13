@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
 import io.micrometer.common.KeyValue;
@@ -155,6 +156,50 @@ class McpToolSpecificationsObservationTests {
 
 		assertThat(result.isError()).isTrue();
 		assertThat(tags(this.recorded.getFirst())).contains(KeyValue.of("gatool.call.outcome", "off-request-thread"));
+	}
+
+	@Test
+	void statefulCall_elicitToolTheUserDeclines_shouldRecordTheElicitationDeclinedOutcome() {
+		AtomicInteger calls = new AtomicInteger();
+		GATool asking = tool((arguments) -> {
+			calls.incrementAndGet();
+			return new ToolCallOutcome("{\"data\":{}}", false);
+		}).toBuilder().elicit("Read the movies?").build();
+		FakeLoggableSession session = FakeLoggableSession.answering(McpSchema.ElicitResult.Action.DECLINE);
+
+		McpSchema.CallToolResult result = McpToolSpecifications
+			.statefulSpecification(asking, jsonMapper(), policy(false).withElicitation(asking()))
+			.callHandler()
+			.apply(UserApprovalTests.exchange(session, McpSchema.ClientCapabilities.builder().elicitation().build()),
+					request());
+
+		assertThat(result.isError()).isTrue();
+		assertThat(calls).hasValue(0);
+		assertThat(tags(this.recorded.getFirst())).contains(KeyValue.of("gatool.call.outcome", "elicitation-declined"));
+	}
+
+	@Test
+	void statefulCall_elicitToolWithoutAnExchange_shouldRecordTheElicitationUnsupportedOutcome() {
+		AtomicInteger calls = new AtomicInteger();
+		GATool asking = tool((arguments) -> {
+			calls.incrementAndGet();
+			return new ToolCallOutcome("{\"data\":{}}", false);
+		}).toBuilder().elicit("Read the movies?").build();
+
+		McpSchema.CallToolResult result = McpToolSpecifications
+			.statefulSpecification(asking, jsonMapper(), policy(false).withElicitation(asking()))
+			.callHandler()
+			.apply(null, request());
+
+		assertThat(result.isError()).isTrue();
+		assertThat(calls).hasValue(0);
+		assertThat(tags(this.recorded.getFirst()))
+			.contains(KeyValue.of("gatool.call.outcome", "elicitation-unsupported"));
+	}
+
+	private static ElicitationSettings asking() {
+		return new ElicitationSettings(true, ElicitationSettings.DEFAULT_DECLINED_ANSWER,
+				ElicitationSettings.DEFAULT_CANCELLED_ANSWER, Duration.ofSeconds(20));
 	}
 
 	private McpCallSettings policy(boolean includeContent) {

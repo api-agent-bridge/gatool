@@ -113,14 +113,15 @@ final class McpCallPolicies {
 				properties.getElicitation().getCancelledAnswer(), requestTimeout(environment));
 	}
 
-	// The value Spring AI applies, 20 seconds while the property is unset. The Binder
-	// reads the duration formats Spring AI's own binding reads, such as 5s and 5m, in any
-	// context. Environment.getProperty converts a string to a Duration only where Boot's
-	// conversion service is installed, which a plain application context lacks.
+	// The value Spring AI applies, and Spring AI's own default while the property is
+	// unset. The Binder reads the duration formats Spring AI's own binding reads, such as
+	// 5s and 5m, in any context. Environment.getProperty converts a string to a Duration
+	// only where Boot's conversion service is installed, which a plain application
+	// context lacks.
 	static Duration requestTimeout(Environment environment) {
 		return Binder.get(environment)
 			.bind("spring.ai.mcp.server.request-timeout", Duration.class)
-			.orElse(Duration.ofSeconds(20));
+			.orElse(ElicitationSettings.DEFAULT_REQUEST_TIMEOUT);
 	}
 
 	/**

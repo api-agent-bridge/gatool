@@ -190,7 +190,11 @@ class McpElicitStartupTests {
 				assertThat(stopOf(context)).isInstanceOf(McpSecurityException.class)
 					.hasMessageContaining(
 							"The MCP server bean 'mcpSyncServer' was built without immediateExecution(true)")
-					.hasMessageContaining("gatool.mcp.stdio.elicitation holds another word that binds false");
+					.hasMessageContaining("gatool.mcp.stdio.elicitation holds another word that binds false, such as "
+							+ "off: GATool registers its own customizer only while that property is unset or is the "
+							+ "word false.")
+					.isInstanceOfSatisfying(McpSecurityException.class, (stop) -> assertThat(stop.action())
+						.endsWith("Where gatool.mcp.stdio.elicitation holds another word for false, write false."));
 			});
 
 		// The warning is written where the bound value is false, so the server runs

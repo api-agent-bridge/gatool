@@ -1468,7 +1468,7 @@ answers a tool error, and the API stays uncalled:
 | The client lacks the form elicitation capability | The tool `{tool}` asks the user before it runs, and this client did not declare the form elicitation capability, so the API was not called. Connect with a client that supports MCP form elicitation. |
 | The user declined | `gatool.elicitation.declined-answer`, by default: The user declined the call to `{tool}`, so the API was not called. Ask the user what to do next. |
 | The user dismissed the dialog | `gatool.elicitation.cancelled-answer`, by default: The user dismissed the confirmation for `{tool}` without answering, so the API was not called. Ask the user whether to try again. |
-| The user did not answer in time | The user did not answer the confirmation for `{tool}` within N seconds (spring.ai.mcp.server.request-timeout), so the API was not called. |
+| The user did not answer in time | The user did not answer the confirmation for `{tool}` within `{timeout}` (spring.ai.mcp.server.request-timeout), so the API was not called. |
 | The request failed | The confirmation for `{tool}` failed before the user could answer, so the API was not called. |
 
 The approval runs after the scope check and the rate limit, so a refused call

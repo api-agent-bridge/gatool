@@ -76,7 +76,7 @@ class McpElicitSettingsOverHttpTests {
 
 			assertThat(result.isError()).isTrue();
 			assertThat(text(result)).isEqualTo("The user did not answer the confirmation for topRatedMovies within "
-					+ "1 seconds (spring.ai.mcp.server.request-timeout), so the API was not called.");
+					+ "1 second (spring.ai.mcp.server.request-timeout), so the API was not called.");
 		}
 		assertThat(MoviesApiServer.graphQlCalls()).isEqualTo(before);
 	}

@@ -205,7 +205,7 @@ final class ImmediateExecutionCheck {
 						"Either this bean was built elsewhere and the builder that built it left the setting out, "
 								+ "or " + McpStartupStops.STDIO_ELICITATION_PROPERTY
 								+ " holds another word that binds false, such as off: GATool registers its own "
-								+ "customizer only while that property is unset or reads false.",
+								+ "customizer only while that property is unset or is the word false.",
 						"This context holds the McpSyncServerCustomizer bean '",
 						"This context holds the McpSyncServerCustomizer beans '");
 	}

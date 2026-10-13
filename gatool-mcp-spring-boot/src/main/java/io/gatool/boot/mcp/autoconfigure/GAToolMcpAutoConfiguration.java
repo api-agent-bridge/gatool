@@ -818,7 +818,7 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 			if (!asks) {
 				McpStartupStops.stopWhereToolsElicitWithoutAChannel(catalog, properties,
 						"stdio while " + McpStartupStops.STDIO_ELICITATION_PROPERTY + " is false",
-						"Set " + McpStartupStops.STDIO_ELICITATION_PROPERTY + "=true");
+						McpStartupStops.stdioElicitationFix(applicationContext));
 				McpStartupWarnings.warnWhenElicitToolsRunWithoutAsking(catalog, properties);
 			}
 			else {
@@ -827,7 +827,7 @@ public final class GAToolMcpAutoConfiguration implements InitializingBean {
 				McpStartupWarnings.warnWhenTheRequestTimeoutIsShortForAPerson(catalog, environment);
 			}
 			Set<String> grantedScopes = null;
-			if (SpringAiMcpKeys.servesStdio(environment)) {
+			if (stdio) {
 				logger.info("GATool serves MCP over stdio.");
 				grantedScopes = McpCallPolicies.readStdioScopes(catalog, properties);
 			}

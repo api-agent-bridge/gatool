@@ -334,10 +334,26 @@ final class McpStartupStops {
 			return;
 		}
 		throw new InvalidConfigurationPropertyValueException(IGNORE_PROPERTY, false,
-				asking.size() + ((asking.size() == 1) ? " tool asks" : " tools ask") + " the user before each call ("
-						+ String.join(", ", asking) + "), and this deployment runs on " + transport
-						+ ", which cannot ask. " + fix + ", or set " + IGNORE_PROPERTY
+				toolsAskingBeforeEachCall(asking) + " (" + String.join(", ", asking) + "), and this deployment runs on "
+						+ transport + ", which cannot ask. " + fix + ", or set " + IGNORE_PROPERTY
 						+ "=true to serve these tools without asking.");
+	}
+
+	/**
+	 * Returns the fix the stop for stdio without {@code gatool.mcp.stdio.elicitation}
+	 * names. A servlet application that serves stdio would meet
+	 * {@link #stopOnStdioElicitationInAWebApplication} once it set the property, so its
+	 * fix leads with serving stdio without a web server.
+	 * @param applicationContext says whether this is a web application
+	 * @return the fix, written to be followed by the ignore property as the other choice
+	 */
+	static String stdioElicitationFix(ApplicationContext applicationContext) {
+		String setTheProperty = STDIO_ELICITATION_PROPERTY + "=true";
+		if (applicationContext instanceof WebApplicationContext) {
+			return "Serve stdio from an application without a web server, with " + WEB_APPLICATION_TYPE_PROPERTY
+					+ "=none, and set " + setTheProperty;
+		}
+		return "Set " + setTheProperty;
 	}
 
 	/**
@@ -361,6 +377,12 @@ final class McpStartupStops {
 
 	static List<String> elicitToolNames(GAToolCatalog catalog) {
 		return catalog.mcpTools().stream().filter((tool) -> tool.elicit() != null).map(GATool::name).toList();
+	}
+
+	// The opening the stop above and the timeout warning share, such as "1 tool asks the
+	// user before each call", counted over the tools marked elicit.
+	static String toolsAskingBeforeEachCall(List<String> asking) {
+		return asking.size() + ((asking.size() == 1) ? " tool asks" : " tools ask") + " the user before each call";
 	}
 
 	// A cap below one turns every client away, and a timeout at or below zero evicts

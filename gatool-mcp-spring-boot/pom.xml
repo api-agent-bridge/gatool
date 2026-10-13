@@ -266,6 +266,13 @@
             <artifactId>spring-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- OutputCaptureExtension, through which a unit test reads the log lines the code
+             under test writes, such as the ERROR line of a confirmation that failed. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-test</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- Jwt, which the session binding filter test builds a caller from. The main
              code names JwtDecoder as a string in its conditions and reads the token
              through Spring Security's abstract types, so the JOSE module is a test

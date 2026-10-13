@@ -16,7 +16,11 @@
 
 package io.gatool.boot.mcp.internal.server;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
@@ -46,9 +50,10 @@ final class UserApproval {
 
 	/**
 	 * The form GATool sends: an object without fields, so the client asks for a decision
-	 * alone.
+	 * alone. The keys keep their order, so the form goes on the wire as
+	 * {@code {"type":"object","properties":{}}} on every run.
 	 */
-	static final Map<String, Object> EMPTY_FORM = Map.of("type", "object", "properties", Map.of());
+	static final Map<String, Object> EMPTY_FORM = emptyForm();
 
 	/** How many characters of the arguments follow the question. */
 	static final int ARGUMENTS_LIMIT = 1_000;
@@ -57,7 +62,10 @@ final class UserApproval {
 
 	private static final String TOOL_PLACEHOLDER = "{tool}";
 
-	private static final Pattern BEARER_TOKEN = Pattern.compile("(?i)bearer(?:\\s|%20)++[a-z0-9._~+/=%-]+");
+	// The pattern runs over the arguments as JSON text, where a tab, a line feed or a
+	// carriage return between the scheme and the token is written as the two characters
+	// \t, \n or \r, so those escapes separate the two as well as whitespace and %20 do.
+	private static final Pattern BEARER_TOKEN = Pattern.compile("(?i)bearer(?:\\s|%20|\\\\[tnr])++[a-z0-9._~+/=%-]+");
 
 	private static final JsonMapper WRITER = JsonMapper.builder().build();
 
@@ -94,8 +102,8 @@ final class UserApproval {
 			if (isTimeout(failure)) {
 				return new Verdict(Decision.TIMED_OUT,
 						"The user did not answer the confirmation for " + tool.name() + " within "
-								+ settings.requestTimeout().toSeconds()
-								+ " seconds (spring.ai.mcp.server.request-timeout), so the API was not called.",
+								+ ElicitationSettings.inWords(settings.requestTimeout())
+								+ " (spring.ai.mcp.server.request-timeout), so the API was not called.",
 						"elicitation-timeout");
 			}
 			logger.error("The confirmation for " + tool.name() + " failed before the user could answer.", failure);
@@ -162,14 +170,25 @@ final class UserApproval {
 	}
 
 	// The sync exchange blocks on a Mono with the request timeout, and Reactor wraps the
-	// checked TimeoutException it raises, so the cause chain is what says timeout.
+	// checked TimeoutException it raises, so the cause chain is what says timeout. The
+	// walk stops at an exception it has already read, because initCause accepts a chain
+	// that leads back to an earlier link, and a walk round that loop would hold the
+	// thread that handles the call.
 	private static boolean isTimeout(Throwable failure) {
-		for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+		Set<Throwable> read = Collections.newSetFromMap(new IdentityHashMap<>());
+		for (Throwable cause = failure; cause != null && read.add(cause); cause = cause.getCause()) {
 			if (cause instanceof TimeoutException) {
 				return true;
 			}
 		}
 		return false;
+	}
+
+	private static Map<String, Object> emptyForm() {
+		Map<String, Object> form = new LinkedHashMap<>();
+		form.put("type", "object");
+		form.put("properties", Map.of());
+		return Collections.unmodifiableMap(form);
 	}
 
 	/** What the user, the client or the wait decided. */

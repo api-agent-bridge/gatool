@@ -28,13 +28,21 @@ import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.Timeout.ThreadMode;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import reactor.core.publisher.Mono;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.gatool.core.model.GATool;
 import io.gatool.core.model.ToolCallOutcome;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+// The capture reads the lines UserApproval logs, which also reach the build output.
+@ExtendWith(OutputCaptureExtension.class)
 class UserApprovalTests {
 
 	private static final ElicitationSettings SETTINGS = new ElicitationSettings(true,
@@ -59,6 +67,10 @@ class UserApprovalTests {
 		McpSchema.ElicitFormRequest sent = (McpSchema.ElicitFormRequest) session.lastParams.get();
 		assertThat(sent.message()).isEqualTo("Read the movies?\n\n{\"first\":3}");
 		assertThat(sent.requestedSchema()).isEqualTo(Map.of("type", "object", "properties", Map.of()));
+		// The keys keep the order they were put in, so the wire form is the same text on
+		// every run of the JVM.
+		assertThat(JsonMapper.builder().build().writeValueAsString(sent.requestedSchema()))
+			.isEqualTo("{\"type\":\"object\",\"properties\":{}}");
 	}
 
 	@Test
@@ -84,6 +96,32 @@ class UserApprovalTests {
 		assertThat(verdict.decision()).isEqualTo(UserApproval.Decision.CANCELLED);
 		assertThat(verdict.outcome()).isEqualTo("elicitation-cancelled");
 		assertThat(verdict.answer()).startsWith("The user dismissed the confirmation for topRatedMovies");
+	}
+
+	@Test
+	void ask_cancelledUnderABlankAnswer_shouldFallBackToTheDefault() {
+		ElicitationSettings blank = new ElicitationSettings(true, "No.", " ", Duration.ofSeconds(20));
+
+		UserApproval.Verdict verdict = UserApproval.ask(tool("Read the movies?"), Map.of(),
+				exchange(FakeLoggableSession.answering(McpSchema.ElicitResult.Action.CANCEL),
+						McpSchema.ClientCapabilities.builder().elicitation().build()),
+				blank);
+
+		assertThat(verdict.answer()).isEqualTo("The user dismissed the confirmation for topRatedMovies without "
+				+ "answering, so the API was not called. Ask the user whether to try again.");
+	}
+
+	@Test
+	void ask_declinedUnderAnAnswerNamingTheToolTwice_shouldNameItInBothPlaces() {
+		ElicitationSettings twice = new ElicitationSettings(true,
+				"{tool} was declined. Ask before calling {tool} again.", "Later.", Duration.ofSeconds(20));
+
+		UserApproval.Verdict verdict = UserApproval.ask(tool("Read the movies?"), Map.of(),
+				exchange(FakeLoggableSession.answering(McpSchema.ElicitResult.Action.DECLINE),
+						McpSchema.ClientCapabilities.builder().elicitation().build()),
+				twice);
+
+		assertThat(verdict.answer()).isEqualTo("topRatedMovies was declined. Ask before calling topRatedMovies again.");
 	}
 
 	@Test
@@ -131,7 +169,7 @@ class UserApprovalTests {
 	}
 
 	@Test
-	void ask_answerThatTimesOut_shouldNameTheTimeoutAndTheProperty() {
+	void ask_answerThatTimesOut_shouldNameTheTimeoutAndTheProperty(CapturedOutput output) {
 		FakeLoggableSession session = new FakeLoggableSession(() -> Mono.error(new TimeoutException("5000ms")));
 
 		UserApproval.Verdict verdict = UserApproval.ask(tool("Read the movies?"), Map.of(),
@@ -141,10 +179,25 @@ class UserApprovalTests {
 		assertThat(verdict.outcome()).isEqualTo("elicitation-timeout");
 		assertThat(verdict.answer()).isEqualTo("The user did not answer the confirmation for topRatedMovies within "
 				+ "20 seconds (spring.ai.mcp.server.request-timeout), so the API was not called.");
+		// A timeout is an answer the user did not give in time, so it stays out of the
+		// ERROR line a failed confirmation writes.
+		assertThat(output).doesNotContain("The confirmation for topRatedMovies failed");
 	}
 
 	@Test
-	void ask_sessionThatFails_shouldAnswerFailedWithoutTheCause() {
+	void ask_answerThatTimesOutUnderOneSecond_shouldNameTheTimeoutInTheSingular() {
+		FakeLoggableSession session = new FakeLoggableSession(() -> Mono.error(new TimeoutException("1000ms")));
+		ElicitationSettings oneSecond = new ElicitationSettings(true, "No.", "Later.", Duration.ofSeconds(1));
+
+		UserApproval.Verdict verdict = UserApproval.ask(tool("Read the movies?"), Map.of(),
+				exchange(session, McpSchema.ClientCapabilities.builder().elicitation().build()), oneSecond);
+
+		assertThat(verdict.answer()).isEqualTo("The user did not answer the confirmation for topRatedMovies within "
+				+ "1 second (spring.ai.mcp.server.request-timeout), so the API was not called.");
+	}
+
+	@Test
+	void ask_sessionThatFails_shouldAnswerFailedWithoutTheCause(CapturedOutput output) {
 		FakeLoggableSession session = new FakeLoggableSession(
 				() -> Mono.error(new IllegalStateException("secret internals")));
 
@@ -155,6 +208,46 @@ class UserApprovalTests {
 		assertThat(verdict.outcome()).isEqualTo("elicitation-failed");
 		assertThat(verdict.answer()).isEqualTo("The confirmation for topRatedMovies failed before the user could "
 				+ "answer, so the API was not called.");
+		// The log carries the cause for the operator, and the model reads the sentence
+		// above alone.
+		assertThat(output).contains("ERROR")
+			.contains("The confirmation for topRatedMovies failed before the user could answer.")
+			.contains("java.lang.IllegalStateException: secret internals");
+		assertThat(verdict.answer()).doesNotContain("secret internals").doesNotContain("IllegalStateException");
+	}
+
+	// The timeout runs the test on a thread of its own, so a walk that loops fails the
+	// test after 10 seconds.
+	@Test
+	@Timeout(value = 10, threadMode = ThreadMode.SEPARATE_THREAD)
+	void ask_failureWhoseCausesFormALoop_shouldEndTheWalkAndAnswerFailed() {
+		// initCause accepts a chain that leads back to an earlier link, and the walk for
+		// a timeout among the causes reads each link once.
+		IllegalStateException first = new IllegalStateException("first");
+		IllegalArgumentException second = new IllegalArgumentException("second");
+		first.initCause(second);
+		second.initCause(first);
+		FakeLoggableSession session = new FakeLoggableSession(() -> Mono.error(first));
+
+		UserApproval.Verdict verdict = UserApproval.ask(tool("Read the movies?"), Map.of(),
+				exchange(session, McpSchema.ClientCapabilities.builder().elicitation().build()), SETTINGS);
+
+		assertThat(verdict.decision()).isEqualTo(UserApproval.Decision.FAILED);
+	}
+
+	@Test
+	@Timeout(value = 10, threadMode = ThreadMode.SEPARATE_THREAD)
+	void ask_timeoutInsideALoopOfCauses_shouldAnswerTimedOut() {
+		RuntimeException wrapper = new RuntimeException("wrapper");
+		TimeoutException timeout = new TimeoutException("20000ms");
+		wrapper.initCause(timeout);
+		timeout.initCause(wrapper);
+		FakeLoggableSession session = new FakeLoggableSession(() -> Mono.error(wrapper));
+
+		UserApproval.Verdict verdict = UserApproval.ask(tool("Read the movies?"), Map.of(),
+				exchange(session, McpSchema.ClientCapabilities.builder().elicitation().build()), SETTINGS);
+
+		assertThat(verdict.decision()).isEqualTo(UserApproval.Decision.TIMED_OUT);
 	}
 
 	@Test
@@ -202,11 +295,36 @@ class UserApprovalTests {
 	}
 
 	@Test
-	void message_argumentsJacksonCannotWrite_shouldFallBackToTheQuestion() {
+	void message_bearerTokenAfterATab_shouldRedactItAsJsonWritesTheTab() {
+		// Jackson writes the tab as the two characters \t.
+		String message = UserApproval.message("Read?", Map.of("note", "Bearer\tabc.def-ghi please"));
+
+		assertThat(message).isEqualTo("Read?\n\n{\"note\":\"Bearer [redacted] please\"}");
+	}
+
+	@Test
+	void message_bearerTokenAfterALineFeed_shouldRedactItAsJsonWritesTheLineFeed() {
+		String message = UserApproval.message("Read?", Map.of("note", "Bearer\nabc.def-ghi please"));
+
+		assertThat(message).isEqualTo("Read?\n\n{\"note\":\"Bearer [redacted] please\"}");
+	}
+
+	@Test
+	void message_bearerTokenAfterAnEncodedSpace_shouldRedactIt() {
+		String message = UserApproval.message("Read?", Map.of("note", "Bearer%20abc.def-ghi please"));
+
+		assertThat(message).isEqualTo("Read?\n\n{\"note\":\"Bearer [redacted] please\"}");
+	}
+
+	@Test
+	void message_argumentsJacksonCannotWrite_shouldFallBackToTheQuestion(CapturedOutput output) {
 		Map<String, @Nullable Object> arguments = new LinkedHashMap<>();
 		arguments.put("self", arguments);
 
 		assertThat(UserApproval.message("Read?", arguments)).isEqualTo("Read?");
+		assertThat(output).contains("WARN")
+			.contains("The arguments of a call could not be written for the user to read, so the question is shown "
+					+ "alone.");
 	}
 
 	private static GATool tool(String question) {

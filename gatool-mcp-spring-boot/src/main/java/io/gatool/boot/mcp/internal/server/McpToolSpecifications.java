@@ -180,7 +180,9 @@ public final class McpToolSpecifications {
 
 	// Calls the tool inside one observation and returns the result of the call.
 	// GATool records one observation around the whole call, so the duration covers
-	// the rate limit check as well as the GraphQL request. An application without an
+	// the rate limit check as well as the GraphQL request. For a tool marked elicit it
+	// also spans the time the user takes to answer the confirmation, up to
+	// spring.ai.mcp.server.request-timeout. An application without an
 	// ObservationRegistry bean gets ObservationRegistry.NOOP, where every call below
 	// costs a few field reads.
 	// exchange: the stateful exchange of this call, or null on the stateless server and

@@ -30,6 +30,7 @@ import io.gatool.boot.GAToolCatalog;
 import io.gatool.boot.autoconfigure.GAToolMcpProperties;
 import io.gatool.boot.autoconfigure.GAToolProperties;
 import io.gatool.boot.internal.SpringAiMcpKeys;
+import io.gatool.boot.mcp.internal.server.ElicitationSettings;
 
 /**
  * The warnings {@link GAToolMcpAutoConfiguration} writes at startup about a setting that
@@ -221,9 +222,10 @@ final class McpStartupWarnings {
 		}
 		Duration timeout = McpCallPolicies.requestTimeout(environment);
 		if (timeout.compareTo(Duration.ofSeconds(60)) < 0) {
-			logger.warn(asking.size() + ((asking.size() == 1) ? " tool asks" : " tools ask")
-					+ " the user before each call, and spring.ai.mcp.server.request-timeout gives the user "
-					+ timeout.toSeconds() + " seconds to answer; set it to the time a person needs, such as 5m.");
+			logger.warn(McpStartupStops.toolsAskingBeforeEachCall(asking)
+					+ ", and spring.ai.mcp.server.request-timeout gives the user "
+					+ ElicitationSettings.inWords(timeout)
+					+ " to answer; set it to the time a person needs, such as 5m.");
 		}
 	}
 

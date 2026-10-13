@@ -18,6 +18,8 @@ package io.gatool.boot.mcp.internal.server;
 
 import java.time.Duration;
 
+import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerProperties;
+
 /**
  * What the approval step needs: whether this transport asks at all, the two sentences the
  * model reads after a decline and a cancel, and the request timeout Spring AI gave the
@@ -33,6 +35,13 @@ import java.time.Duration;
 public record ElicitationSettings(boolean asks, String declinedAnswer, String cancelledAnswer,
 		Duration requestTimeout) {
 
+	/**
+	 * The request timeout Spring AI applies while spring.ai.mcp.server.request-timeout is
+	 * unset, read from Spring AI's own properties class so that a change of its default
+	 * reaches GATool with the upgrade.
+	 */
+	public static final Duration DEFAULT_REQUEST_TIMEOUT = new McpServerProperties().getRequestTimeout();
+
 	static final String DEFAULT_DECLINED_ANSWER = "The user declined the call to {tool}, so the API was not called. "
 			+ "Ask the user what to do next.";
 
@@ -41,12 +50,32 @@ public record ElicitationSettings(boolean asks, String declinedAnswer, String ca
 
 	/**
 	 * Returns the settings of a transport that cannot ask, with the default sentences and
-	 * Spring AI's default timeout of 20 seconds.
+	 * Spring AI's default timeout.
 	 * @return settings under which every tool runs without asking
 	 */
 	public static ElicitationSettings off() {
 		return new ElicitationSettings(false, DEFAULT_DECLINED_ANSWER, DEFAULT_CANCELLED_ANSWER,
-				Duration.ofSeconds(20));
+				DEFAULT_REQUEST_TIMEOUT);
+	}
+
+	/**
+	 * Writes a duration the way a person reads it: in whole seconds from one second up,
+	 * with "1 second" in the singular, and in milliseconds below one second. The timeout
+	 * answer the model reads and the startup warning about a short timeout both name the
+	 * request timeout this way.
+	 * @param duration the duration to write
+	 * @return the duration in words, such as 20 seconds, 1 second or 500 milliseconds
+	 */
+	// Whole seconds truncate as Duration.toSeconds() does, so 1500 milliseconds reads as
+	// 1 second. Below one second toSeconds() is 0, and "0 seconds" reads as a timeout of
+	// zero, so the milliseconds are named there.
+	public static String inWords(Duration duration) {
+		long seconds = duration.toSeconds();
+		if (seconds >= 1) {
+			return seconds + ((seconds == 1) ? " second" : " seconds");
+		}
+		long milliseconds = duration.toMillis();
+		return milliseconds + ((milliseconds == 1) ? " millisecond" : " milliseconds");
 	}
 
 }
