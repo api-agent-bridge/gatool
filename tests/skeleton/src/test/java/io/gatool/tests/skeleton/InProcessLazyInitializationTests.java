@@ -16,16 +16,23 @@
 
 package io.gatool.tests.skeleton;
 
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.tool.ToolCallback;
+import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.boot.LazyInitializationBeanFactoryPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.context.properties.source.InvalidConfigurationPropertyValueException;
 import org.springframework.boot.http.client.autoconfigure.HttpClientAutoConfiguration;
 import org.springframework.boot.restclient.autoconfigure.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.core.ParameterizedTypeReference;
 
 import io.gatool.boot.autoconfigure.GAToolAutoConfiguration;
 import io.gatool.boot.autoconfigure.OperationFileProblemsException;
 import io.gatool.boot.inprocess.autoconfigure.GAToolInProcessAutoConfiguration;
+import io.gatool.boot.inprocess.autoconfigure.InProcessToolNameClashException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,6 +45,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * dependency. Without the MCP server a lazy catalog would let an application with a
  * broken operation file start and report ready, and the first chat request would fail
  * inside a bean creation, outside Spring Boot's failure analysis.
+ *
+ * <p>
+ * The in-process callbacks bean carries two more startup stops: a tool marked elicit, and
+ * a tool name that clashes with one of the application's tool beans. The in-process
+ * auto-configuration keeps that bean eager too, so both stops still fail startup.
  */
 class InProcessLazyInitializationTests {
 
@@ -59,6 +71,35 @@ class InProcessLazyInitializationTests {
 			.run((context) -> assertThat(context).getFailure()
 				.rootCause()
 				.isInstanceOf(OperationFileProblemsException.class));
+	}
+
+	@Test
+	void lazyInitialization_inProcessToolMarkedElicit_shouldStillStopStartup() {
+		this.lazyRunner
+			.withPropertyValues("gatool.in-process.operations.locations=classpath:gatool/elicit/",
+					"gatool.mcp.operations.locations=optional:classpath*:gatool/none/")
+			.run((context) -> assertThat(context).getFailure()
+				.rootCause()
+				.isInstanceOf(InvalidConfigurationPropertyValueException.class)
+				.hasMessageContaining("topRatedMovies"));
+	}
+
+	@Test
+	void lazyInitialization_applicationToolOfTheSameName_shouldStillStopStartup() {
+		this.lazyRunner.withPropertyValues("gatool.in-process.operations.locations=classpath:gatool/in-process/")
+			.withBean("clashing", ToolCallback.class, () -> callback("topRatedMovies"))
+			.run((context) -> assertThat(context).getFailure()
+				.rootCause()
+				.isInstanceOf(InProcessToolNameClashException.class)
+				.hasMessageContaining("topRatedMovies"));
+	}
+
+	private static ToolCallback callback(String name) {
+		return FunctionToolCallback.builder(name, (Map<String, Object> arguments) -> "{}")
+			.description("A tool the application declares itself.")
+			.inputType(new ParameterizedTypeReference<Map<String, Object>>() {
+			})
+			.build();
 	}
 
 }

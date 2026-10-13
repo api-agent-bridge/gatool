@@ -41,6 +41,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(OutputCaptureExtension.class)
 class InProcessElicitStartupTests {
 
+	private static final String WARNING = "gatool.elicitation.ignore-where-unsupported is true, so these in-process "
+			+ "tools run without asking the user: ";
+
 	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
 		.withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class, HttpClientAutoConfiguration.class,
 				RestClientAutoConfiguration.class, GAToolAutoConfiguration.class,
@@ -63,14 +66,46 @@ class InProcessElicitStartupTests {
 	}
 
 	@Test
+	void startup_twoInProcessToolsMarkedElicit_shouldStopNamingBothInThePlural() {
+		this.contextRunner.withPropertyValues("gatool.in-process.operations.locations=classpath:gatool/elicit-pair/")
+			.run((context) -> {
+				assertThat(context).hasFailed();
+				assertThat(context.getStartupFailure()).rootCause()
+					.isInstanceOfSatisfying(InvalidConfigurationPropertyValueException.class, (stop) -> {
+						assertThat(stop.getName()).isEqualTo("gatool.elicitation.ignore-where-unsupported");
+						assertThat(stop.getReason()).isEqualTo("2 in-process tools ask the user before each call "
+								+ "(movieByLookup, topRatedMovies), and an in-process tool answers a ChatClient in the "
+								+ "same JVM, which cannot ask. Serve the tool through the MCP starter on the stateful "
+								+ "Streamable HTTP transport, or set gatool.elicitation.ignore-where-unsupported=true "
+								+ "to serve it without asking.");
+					});
+			});
+	}
+
+	@Test
 	void startup_inProcessToolMarkedElicitUnderTheIgnoreProperty_shouldStartAndWarn(CapturedOutput output) {
 		this.contextRunner.withPropertyValues("gatool.elicitation.ignore-where-unsupported=true").run((context) -> {
 			assertThat(context).hasNotFailed();
 			assertThat(context).hasSingleBean(GAToolCallbacks.class);
 		});
 
-		assertThat(output).contains("gatool.elicitation.ignore-where-unsupported is true, so these in-process "
-				+ "tools run without asking the user: topRatedMovies");
+		// The line separator after the full stop pins the end of the sentence.
+		assertThat(output).contains(WARNING + "topRatedMovies." + System.lineSeparator());
+	}
+
+	@Test
+	void startup_ignorePropertyWithoutAToolMarkedElicit_shouldStartWithoutTheWarning(CapturedOutput output) {
+		this.contextRunner
+			.withPropertyValues("gatool.in-process.operations.locations=classpath:gatool/in-process/",
+					"gatool.elicitation.ignore-where-unsupported=true")
+			.run((context) -> {
+				assertThat(context).hasNotFailed();
+				assertThat(context.getBean(GAToolCallbacks.class).toolCallbackProvider().getToolCallbacks())
+					.singleElement()
+					.satisfies((tool) -> assertThat(tool.getToolDefinition().name()).isEqualTo("topRatedMovies"));
+			});
+
+		assertThat(output).doesNotContain("gatool.elicitation.ignore-where-unsupported is true");
 	}
 
 }

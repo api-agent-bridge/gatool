@@ -27,6 +27,7 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.support.ToolUtils;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.LazyInitializationExcludeFilter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -63,6 +64,8 @@ public final class GAToolInProcessAutoConfiguration {
 
 	private static final Log logger = LogFactory.getLog(GAToolInProcessAutoConfiguration.class);
 
+	private static final String IGNORE_WHERE_UNSUPPORTED = "gatool.elicitation.ignore-where-unsupported";
+
 	/**
 	 * Creates the auto-configuration, which Spring Boot instantiates at startup.
 	 */
@@ -89,7 +92,30 @@ public final class GAToolInProcessAutoConfiguration {
 	}
 
 	/**
+	 * Keeps the in-process callbacks bean eager under
+	 * {@code spring.main.lazy-initialization=true}.
+	 *
+	 * <p>
+	 * Building that bean is what stops startup for a tool marked {@code elicit} and for a
+	 * clashing tool name. A lazy bean would let such an application start and report
+	 * ready, and the first chat request would fail inside a bean creation, outside Spring
+	 * Boot's failure analysis. The method is static, as Boot asks for a filter that runs
+	 * this early.
+	 * @return the filter that keeps the callbacks bean out of lazy initialization
+	 */
+	@Bean
+	static LazyInitializationExcludeFilter gaToolCallbacksLazyInitializationExcludeFilter() {
+		return LazyInitializationExcludeFilter.forBeanTypes(GAToolCallbacks.class);
+	}
+
+	/**
 	 * Publishes the handle for the application's own {@code ChatClient} beans.
+	 *
+	 * <p>
+	 * The bean stops startup where an in-process tool is marked {@code elicit}, because
+	 * the {@code ChatClient} that calls the tool cannot ask a user. With
+	 * {@code gatool.elicitation.ignore-where-unsupported=true} the tool runs without
+	 * asking, and startup logs a warning that names it.
 	 *
 	 * <p>
 	 * GATool checks its own tool names against the tool beans an application declares,
@@ -132,16 +158,16 @@ public final class GAToolInProcessAutoConfiguration {
 			return;
 		}
 		if (properties.getElicitation().isIgnoreWhereUnsupported()) {
-			logger.warn("gatool.elicitation.ignore-where-unsupported is true, so these in-process tools run without "
-					+ "asking the user: " + String.join(", ", asking) + ".");
+			logger.warn(IGNORE_WHERE_UNSUPPORTED + " is true, so these in-process tools run without asking the user: "
+					+ String.join(", ", asking) + ".");
 			return;
 		}
-		throw new InvalidConfigurationPropertyValueException("gatool.elicitation.ignore-where-unsupported", false,
+		throw new InvalidConfigurationPropertyValueException(IGNORE_WHERE_UNSUPPORTED, false,
 				asking.size() + ((asking.size() == 1) ? " in-process tool asks" : " in-process tools ask")
 						+ " the user before each call (" + String.join(", ", asking)
 						+ "), and an in-process tool answers a ChatClient in the same JVM, which cannot ask. Serve "
 						+ "the tool through the MCP starter on the stateful Streamable HTTP transport, or set "
-						+ "gatool.elicitation.ignore-where-unsupported=true to serve it without asking.");
+						+ IGNORE_WHERE_UNSUPPORTED + "=true to serve it without asking.");
 	}
 
 	// Fails startup where two in-process tool names clash, comparing the application's

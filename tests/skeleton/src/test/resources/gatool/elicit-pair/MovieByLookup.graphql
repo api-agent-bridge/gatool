@@ -1,0 +1,7 @@
+# Looks up one movie by its id or by its exact title, after the user agrees.
+query MovieByLookup($by: MovieLookupInput!) @gatool(elicit: "Look up the movie?") {
+  movie(by: $by) {
+    id
+    title
+  }
+}
