@@ -1517,14 +1517,14 @@ Java SDK 2.0.0 closes only the session's listening stream when a session
 closes, the question waits on the stream of the call, and Tomcat learns of a
 dropped connection when the timeout answer is written to it. An accept that
 arrives after the client gave up still runs the operation, and its result goes
-unread, even after the stream of the call has closed. If the model retried the
-call in the meantime, the user is asked again, and the operation runs twice
-where the user accepts both questions. While the user decides, the call holds
-the request thread, which is how a Spring AI tool that elicits waits as well;
-Tomcat's pool, 200 threads by default, bounds how many users decide at once. A
-call whose client disconnected holds its thread until the request timeout, so
-under `5m` each abandoned question keeps a thread for up to five minutes, and
-the pool has to cover those calls beside the users deciding.
+unread, even after the client closed the connection of the call. If the model
+retried the call in the meantime, the user is asked again, and the operation
+runs twice where the user accepts both questions. While the user decides, the
+call holds the request thread, which is how a Spring AI tool that elicits waits
+as well; Tomcat's pool, 200 threads by default, bounds how many users decide at
+once. A call whose client disconnected holds its thread until the request
+timeout, so under `5m` each abandoned question keeps a thread for up to five
+minutes, and the pool has to cover those calls beside the users deciding.
 
 Three deployments cannot ask: the stateless server, whose handler runs without
 an exchange; the in-process starter, whose tools answer a `ChatClient` in the

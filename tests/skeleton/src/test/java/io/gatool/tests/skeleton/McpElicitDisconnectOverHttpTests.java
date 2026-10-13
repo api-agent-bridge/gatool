@@ -45,9 +45,14 @@ import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTranspor
 import io.modelcontextprotocol.spec.McpSchema;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.jspecify.annotations.Nullable;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.logging.LogLevel;
+import org.springframework.boot.logging.LoggerConfiguration;
+import org.springframework.boot.logging.LoggingSystem;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.system.CapturedOutput;
@@ -91,12 +96,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 				"gatool.in-process.operations.locations=optional:classpath*:gatool/none/",
 				"gatool.api.schema.location=classpath:io/gatool/fixtures/movies/movies.graphqls",
 				"spring.ai.mcp.server.request-timeout=3s",
-				// Spring AI's transport logs the end of each POST's stream at DEBUG,
-				// which
-				// tells the tests when the server finished writing the timeout answer.
-				"logging.level.org.springframework.ai.mcp.server.webmvc.transport.WebMvcStreamableServerTransportProvider=DEBUG" })
+				// Spring AI's transport logs the end of each POST's stream at DEBUG, so
+				// the tests know when the server finished writing the timeout answer.
+				// The level goes back after the class (restoreTheTransportLevel).
+				"logging.level." + McpElicitDisconnectOverHttpTests.TRANSPORT_LOGGER + "=DEBUG" })
 @ExtendWith(OutputCaptureExtension.class)
 class McpElicitDisconnectOverHttpTests {
+
+	static final String TRANSPORT_LOGGER = "org.springframework.ai.mcp.server.webmvc.transport."
+			+ "WebMvcStreamableServerTransportProvider";
+
+	private static @Nullable LogLevel transportLevel;
 
 	private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(3);
 
@@ -130,6 +140,24 @@ class McpElicitDisconnectOverHttpTests {
 	@DynamicPropertySource
 	static void apiUrl(DynamicPropertyRegistry registry) {
 		registry.add("gatool.api.url", MoviesApiServer::graphQlUrl);
+	}
+
+	@BeforeAll
+	static void readTheTransportLevel() {
+		LoggerConfiguration configuration = loggingSystem().getLoggerConfiguration(TRANSPORT_LOGGER);
+		transportLevel = (configuration != null) ? configuration.getConfiguredLevel() : null;
+	}
+
+	// The context sets the DEBUG level on the logging system the whole JVM shares. A
+	// context Spring caches and resumes later keeps that level, because Spring Boot
+	// resets levels only where a new context initializes the logging system.
+	@AfterAll
+	static void restoreTheTransportLevel() {
+		loggingSystem().setLogLevel(TRANSPORT_LOGGER, transportLevel);
+	}
+
+	private static LoggingSystem loggingSystem() {
+		return LoggingSystem.get(McpElicitDisconnectOverHttpTests.class.getClassLoader());
 	}
 
 	@Test
@@ -241,8 +269,12 @@ class McpElicitDisconnectOverHttpTests {
 	}
 
 	// The ending is read from the gatool.call observation and from the WARN line GATool
-	// writes for a timeout. It comes at the request timeout after the call started or
-	// later, so the disconnect, which came before that, did not end the wait.
+	// writes for a timeout. Both bounds are measured from before the POST, which comes
+	// at or before the moment the server starts its timer for the question. A disconnect
+	// inside the first bound therefore comes before the timer can fire, and an ending at
+	// or past the second bound came from the timer, so the disconnect did not end the
+	// wait. A bound measured from the question's arrival at the client would let a slow
+	// delivery of the question place the disconnect after the timer fired.
 	private static void assertEndedAtTheRequestTimeout(CapturedOutput output, int mark, long started, long disconnected)
 			throws InterruptedException {
 		assertThat(Duration.ofNanos(disconnected - started)).as("the client went away inside the request timeout")

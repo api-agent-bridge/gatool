@@ -101,10 +101,9 @@ final class UserApproval {
 		}
 		catch (RuntimeException failure) {
 			if (isTimeout(failure)) {
-				// The call held its thread for the whole request timeout, and a client
-				// that
-				// disconnected while the user decided ends here as well, so this line is
-				// the operator's record of both.
+				// The call held its thread for the whole request timeout, and a
+				// client that disconnected while the user decided ends here as well,
+				// so this line is the operator's record of both.
 				String timedOut = "The user did not answer the confirmation for " + tool.name() + " within "
 						+ ElicitationSettings.inWords(settings.requestTimeout())
 						+ " (spring.ai.mcp.server.request-timeout), so the API was not called";
