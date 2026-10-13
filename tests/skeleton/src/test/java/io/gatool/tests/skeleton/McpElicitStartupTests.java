@@ -90,6 +90,16 @@ class McpElicitStartupTests {
 				"spring.ai.mcp.server.stdio=true")
 		.withUserConfiguration(StandInStdioProviderConfiguration.class);
 
+	// A servlet application that serves stdio, as one that sets
+	// spring.main.web-application-type=servlet beside spring.ai.mcp.server.stdio=true
+	// does.
+	private final WebApplicationContextRunner servletStdioServer = new WebApplicationContextRunner()
+		.withConfiguration(AutoConfigurations.of(HttpClientAutoConfiguration.class, RestClientAutoConfiguration.class,
+				GAToolAutoConfiguration.class, McpServerJsonMapperAutoConfiguration.class,
+				GAToolMcpAutoConfiguration.class))
+		.withPropertyValues(PROPERTIES)
+		.withPropertyValues("spring.ai.mcp.server.protocol=STREAMABLE", "spring.ai.mcp.server.stdio=true");
+
 	@Test
 	void startup_statelessServerWithAnElicitTool_shouldStopNamingTheToolAndTheFix() {
 		this.contextRunner.withPropertyValues("spring.ai.mcp.server.protocol=STATELESS").run((context) -> {
@@ -235,20 +245,29 @@ class McpElicitStartupTests {
 
 	@Test
 	void startup_stdioElicitationInAServletApplication_shouldStop() {
-		new WebApplicationContextRunner()
-			.withConfiguration(AutoConfigurations.of(HttpClientAutoConfiguration.class,
-					RestClientAutoConfiguration.class, GAToolAutoConfiguration.class,
-					McpServerJsonMapperAutoConfiguration.class, GAToolMcpAutoConfiguration.class))
-			.withPropertyValues(PROPERTIES)
-			.withPropertyValues("spring.ai.mcp.server.protocol=STREAMABLE", "spring.ai.mcp.server.stdio=true",
-					"gatool.mcp.stdio.elicitation=true")
-			.run((context) -> {
-				assertThat(context).hasFailed();
-				assertThat(context.getStartupFailure()).rootCause()
-					.isInstanceOf(InvalidConfigurationPropertyValueException.class)
-					.hasMessageContaining("gatool.mcp.stdio.elicitation")
-					.hasMessageContaining("servlet application");
-			});
+		this.servletStdioServer.withPropertyValues("gatool.mcp.stdio.elicitation=true").run((context) -> {
+			assertThat(context).hasFailed();
+			assertThat(context.getStartupFailure()).rootCause()
+				.isInstanceOf(InvalidConfigurationPropertyValueException.class)
+				.hasMessageContaining("gatool.mcp.stdio.elicitation")
+				.hasMessageContaining("servlet application");
+		});
+	}
+
+	@Test
+	void startup_stdioWithoutTheStdioPropertyInAServletApplication_shouldLeadWithServingStdioWithoutAWebServer() {
+		// Setting the property alone would move this application to the stop above, so
+		// the fix names the web application type first.
+		this.servletStdioServer.run((context) -> {
+			assertThat(context).hasFailed();
+			assertThat(context.getStartupFailure()).rootCause()
+				.isInstanceOf(InvalidConfigurationPropertyValueException.class)
+				.hasMessageContaining("1 tool asks the user before each call (topRatedMovies), and this deployment "
+						+ "runs on stdio while gatool.mcp.stdio.elicitation is false, which cannot ask. Serve stdio "
+						+ "from an application without a web server, with spring.main.web-application-type=none, and "
+						+ "set gatool.mcp.stdio.elicitation=true, or set gatool.elicitation.ignore-where-unsupported=true "
+						+ "to serve these tools without asking.");
+		});
 	}
 
 	// The check runs as a SmartInitializingSingleton, whose exception reaches the
