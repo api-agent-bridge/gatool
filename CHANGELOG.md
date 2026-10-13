@@ -50,6 +50,13 @@
 
 ### Fixes
 
+- Under `spring.main.lazy-initialization=true`, the in-process starter now
+  creates its tool callbacks bean at startup, so the check for clashing tool
+  names and the stop for a tool marked `elicit` run at startup. The clash
+  check used to run when the application first used that bean. The
+  application's own `ToolCallback` and `ToolCallbackProvider` beans, which
+  the check reads, are created at startup with it.
+
 ## 0.1.0
 
 This is the first release of GATool. The README section
