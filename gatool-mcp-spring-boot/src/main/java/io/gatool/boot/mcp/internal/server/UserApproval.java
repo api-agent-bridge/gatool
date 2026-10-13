@@ -101,11 +101,15 @@ final class UserApproval {
 		}
 		catch (RuntimeException failure) {
 			if (isTimeout(failure)) {
-				return new Verdict(Decision.TIMED_OUT,
-						"The user did not answer the confirmation for " + tool.name() + " within "
-								+ ElicitationSettings.inWords(settings.requestTimeout())
-								+ " (spring.ai.mcp.server.request-timeout), so the API was not called.",
-						"elicitation-timeout");
+				// The call held its thread for the whole request timeout, and a client
+				// that
+				// disconnected while the user decided ends here as well, so this line is
+				// the operator's record of both.
+				String timedOut = "The user did not answer the confirmation for " + tool.name() + " within "
+						+ ElicitationSettings.inWords(settings.requestTimeout())
+						+ " (spring.ai.mcp.server.request-timeout), so the API was not called";
+				logger.warn(timedOut + ", and the call held its thread for that long.");
+				return new Verdict(Decision.TIMED_OUT, timedOut + ".", "elicitation-timeout");
 			}
 			logger.error("The confirmation for " + tool.name() + " failed before the user could answer.", failure);
 			return new Verdict(Decision.FAILED, "The confirmation for " + tool.name()

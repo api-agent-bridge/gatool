@@ -180,8 +180,13 @@ class UserApprovalTests {
 		assertThat(verdict.answer()).isEqualTo("The user did not answer the confirmation for topRatedMovies within "
 				+ "20 seconds (spring.ai.mcp.server.request-timeout), so the API was not called.");
 		// A timeout is an answer the user did not give in time, so it stays out of the
-		// ERROR line a failed confirmation writes.
+		// ERROR line a failed confirmation writes. The WARN line is the operator's record
+		// of a call that held its thread for the whole request timeout.
 		assertThat(output).doesNotContain("The confirmation for topRatedMovies failed");
+		assertThat(output.toString().lines().filter((line) -> line.contains("WARN")))
+			.anySatisfy((line) -> assertThat(line).endsWith("The user did not answer the confirmation for "
+					+ "topRatedMovies within 20 seconds (spring.ai.mcp.server.request-timeout), so the API was not "
+					+ "called, and the call held its thread for that long."));
 	}
 
 	@Test

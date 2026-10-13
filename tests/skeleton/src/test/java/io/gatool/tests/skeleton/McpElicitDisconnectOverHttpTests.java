@@ -43,6 +43,7 @@ import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,7 +62,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * A client that goes away while a tool marked elicit waits for the user, over stateful
  * Streamable HTTP under a three-second request timeout: the wait runs on to the request
- * timeout, the call ends as {@code elicitation-timeout}, and the API stays uncalled.
+ * timeout, the call ends as {@code elicitation-timeout}, GATool logs the timeout at WARN,
+ * and the API stays uncalled.
  *
  * <p>
  * Spring AI's WebMvc transport runs the tool call inside the SSE response of the
@@ -73,7 +75,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * closes its session, which sends {@code DELETE}, and a connection that drops both leave
  * the question waiting, and the request timeout ends the wait. The timeout answer then
  * goes to the closed connection, which Tomcat reports at DEBUG once it writes the answer.
- * From the disconnect to that answer, the server's log stays below WARN.
+ * From the disconnect to that answer, the one line at WARN or above is GATool's timeout
+ * line, which names the tool and the request timeout, so it is the operator's one trace
+ * of the disconnect.
  *
  * <p>
  * An accept posted on the session after the connection dropped still reaches the waiting
@@ -100,6 +104,10 @@ class McpElicitDisconnectOverHttpTests {
 	private static final Duration MARGIN = Duration.ofSeconds(5);
 
 	private static final String STREAM_COMPLETED = "Request response stream completed for session";
+
+	private static final String TIMED_OUT = "The user did not answer the confirmation for topRatedMovies within "
+			+ "3 seconds (spring.ai.mcp.server.request-timeout), so the API was not called, and the call held its "
+			+ "thread for that long.";
 
 	private static final String INITIALIZE = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\","
 			+ "\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{\"elicitation\":{\"form\":{}}},"
@@ -232,11 +240,9 @@ class McpElicitDisconnectOverHttpTests {
 		}
 	}
 
-	// The ending is read from the gatool.call observation, which is where GATool records
-	// a timeout besides the answer to the model. It comes at the request timeout after
-	// the
-	// call started or later, so the disconnect, which came before that, did not end the
-	// wait.
+	// The ending is read from the gatool.call observation and from the WARN line GATool
+	// writes for a timeout. It comes at the request timeout after the call started or
+	// later, so the disconnect, which came before that, did not end the wait.
 	private static void assertEndedAtTheRequestTimeout(CapturedOutput output, int mark, long started, long disconnected)
 			throws InterruptedException {
 		assertThat(Duration.ofNanos(disconnected - started)).as("the client went away inside the request timeout")
@@ -251,7 +257,9 @@ class McpElicitDisconnectOverHttpTests {
 		assertThat(afterTheDisconnect).doesNotContain("The confirmation for topRatedMovies failed");
 		assertThat(afterTheDisconnect.lines().filter((line) -> WARN_OR_ERROR.matcher(line).lookingAt()))
 			.as("lines at WARN or ERROR after the disconnect")
-			.isEmpty();
+			.singleElement(InstanceOfAssertFactories.STRING)
+			.contains(" WARN ")
+			.endsWith(TIMED_OUT);
 	}
 
 	private static void awaitLine(CapturedOutput output, int mark, String line) throws InterruptedException {

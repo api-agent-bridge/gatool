@@ -959,11 +959,19 @@ because the model reads it and can act on it: it corrects the call, or sends
 the same one again after a `408`, a `425` or a `429`, where it reads that a
 later call may succeed, as it does for a `5xx`. A confirmation that fails
 reaches the log at ERROR with its exception, and the model reads only that the
-confirmation failed. A confirmation that times out shows only in the
-observation, as `elicitation-timeout`, and so does one whose client
-disconnected while the handler waited: the MCP SDK waits for the answer until
-the request timeout, and Tomcat reports the closed connection at DEBUG once it
-writes the timeout answer to it. An answer that arrives after the
+confirmation failed. A confirmation that times out reaches the log at WARN in
+one line that names the tool and the request timeout, with `{tool}` and
+`{timeout}` written as in
+[Asking the user before a call](#asking-the-user-before-a-call):
+
+```
+The user did not answer the confirmation for {tool} within {timeout} (spring.ai.mcp.server.request-timeout), so the API was not called, and the call held its thread for that long.
+```
+
+That line is also the trace of a client that disconnected while the handler
+waited: the MCP SDK waits for the answer until the request timeout, the call
+ends as `elicitation-timeout`, and Tomcat reports the closed connection at
+DEBUG once it writes the timeout answer to it. An answer that arrives after the
 request timeout meets a request id the server has dropped: the MCP SDK logs
 `Unexpected response for unknown id` at ERROR on the server and answers the
 client with JSON-RPC error -32603, which the client logs at WARN. The API stays
