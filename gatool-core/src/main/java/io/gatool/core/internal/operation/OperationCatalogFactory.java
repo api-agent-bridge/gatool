@@ -315,6 +315,7 @@ public final class OperationCatalogFactory {
 			.operationType(operation.operationType())
 			.description(description)
 			.title(operation.file().directive().title())
+			.elicit(operation.file().directive().elicit())
 			.printedDocument(operation.printedDocument())
 			.inputSchema(inputSchema.json())
 			.location(operation.location())

@@ -51,11 +51,13 @@ import io.gatool.boot.mcp.limit.ToolRateLimiter;
  * @param requiresTheRequestThread whether a call has to arrive on the thread that served
  * its HTTP request, which holds for a servlet application serving the MCP endpoint and is
  * off over stdio, where one process is the only caller
+ * @param elicitation whether a tool marked elicit asks the user before it runs, the
+ * sentences the model reads after a decline and a cancel, and the request timeout
  * @author Željko Kozina
  */
 public record McpCallSettings(ToolRateLimiter rateLimiter, Supplier<String> caller,
 		ObservationRegistry observationRegistry, boolean includeContent, Map<String, String> toolResponseMimeTypes,
-		@Nullable Set<String> grantedScopes, boolean requiresTheRequestThread) {
+		@Nullable Set<String> grantedScopes, boolean requiresTheRequestThread, ElicitationSettings elicitation) {
 
 	public McpCallSettings {
 		toolResponseMimeTypes = Map.copyOf(toolResponseMimeTypes);
@@ -70,7 +72,8 @@ public record McpCallSettings(ToolRateLimiter rateLimiter, Supplier<String> call
 	public McpCallSettings(ToolRateLimiter rateLimiter, Supplier<String> caller,
 			ObservationRegistry observationRegistry, boolean includeContent,
 			Map<String, String> toolResponseMimeTypes) {
-		this(rateLimiter, caller, observationRegistry, includeContent, toolResponseMimeTypes, null, false);
+		this(rateLimiter, caller, observationRegistry, includeContent, toolResponseMimeTypes, null, false,
+				ElicitationSettings.off());
 	}
 
 	/**
@@ -80,7 +83,7 @@ public record McpCallSettings(ToolRateLimiter rateLimiter, Supplier<String> call
 	 */
 	public McpCallSettings withGrantedScopes(@Nullable Set<String> grantedScopes) {
 		return new McpCallSettings(this.rateLimiter, this.caller, this.observationRegistry, this.includeContent,
-				this.toolResponseMimeTypes, grantedScopes, this.requiresTheRequestThread);
+				this.toolResponseMimeTypes, grantedScopes, this.requiresTheRequestThread, this.elicitation);
 	}
 
 	/**
@@ -90,6 +93,16 @@ public record McpCallSettings(ToolRateLimiter rateLimiter, Supplier<String> call
 	 */
 	public McpCallSettings requiringTheRequestThread(boolean requiresTheRequestThread) {
 		return new McpCallSettings(this.rateLimiter, this.caller, this.observationRegistry, this.includeContent,
-				this.toolResponseMimeTypes, this.grantedScopes, requiresTheRequestThread);
+				this.toolResponseMimeTypes, this.grantedScopes, requiresTheRequestThread, this.elicitation);
+	}
+
+	/**
+	 * Returns this policy with the settings of the approval step.
+	 * @param elicitation the settings
+	 * @return the policy
+	 */
+	public McpCallSettings withElicitation(ElicitationSettings elicitation) {
+		return new McpCallSettings(this.rateLimiter, this.caller, this.observationRegistry, this.includeContent,
+				this.toolResponseMimeTypes, this.grantedScopes, this.requiresTheRequestThread, elicitation);
 	}
 }

@@ -39,6 +39,7 @@ import graphql.ExecutionResult;
 import graphql.ExecutionResultImpl;
 import graphql.GraphqlErrorBuilder;
 import graphql.schema.GraphQLInputType;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -100,6 +101,18 @@ class ToolCallRunnerTests {
 		assertThat(tool.description()).isEqualTo("Returns the highest-rated movies, best first.");
 		assertThat(tool.inputSchema()).isEqualTo(EMPTY_VARIABLES_SCHEMA);
 		assertThat(tool.readOnly()).isTrue();
+		assertThat(tool.elicit()).isNull();
+	}
+
+	@Test
+	void tool_operationWithAnElicitQuestion_shouldCarryTheQuestion() {
+		ToolCallRunner runner = ToolCallRunner.builder(executor(data()), this.writer)
+			.maxCharacters(MAX_CHARACTERS)
+			.build();
+
+		GATool tool = runner.toolFor(operation("Read the movies?"));
+
+		assertThat(tool.elicit()).isEqualTo("Read the movies?");
 	}
 
 	@Test
@@ -1103,6 +1116,10 @@ class ToolCallRunnerTests {
 	}
 
 	private static ToolOperation operation() {
+		return operation(null);
+	}
+
+	private static ToolOperation operation(@Nullable String elicit) {
 		return ToolOperation.builder()
 			.toolName("topRatedMovies")
 			.operationName("TopRatedMovies")
@@ -1112,6 +1129,7 @@ class ToolCallRunnerTests {
 			.inputSchema(EMPTY_VARIABLES_SCHEMA)
 			.location("file:/gatool/mcp/TopRatedMovies.graphql")
 			.toolExposureTypes(Set.of(ToolExposureType.MCP))
+			.elicit(elicit)
 			.build();
 	}
 

@@ -53,9 +53,35 @@ class McpSdkVersionTests {
 			.isNotNull()
 			.as("The MCP Java SDK release found here is later than 2.0.1, so it carries the repair "
 					+ "of https://github.com/modelcontextprotocol/java-sdk/issues/686 and its queue takes an answer "
-					+ "emitted beside another. Take the bean gaToolStdioMcpSyncServerCustomizer out of "
-					+ "GAToolMcpAutoConfiguration, take its startup check over stdio out beside it, and take this "
-					+ "test out.")
+					+ "emitted beside another. Stdio can then run each tool call on the SDK's thread pool and ask "
+					+ "the user, so the workaround and gatool.mcp.stdio.elicitation leave in one change. "
+					+ "In GAToolMcpAutoConfiguration, take out the bean gaToolStdioMcpSyncServerCustomizer with its "
+					+ "@ConditionalOnProperty on gatool.mcp.stdio.elicitation. Keep its startup check "
+					+ "gaToolStdioImmediateExecutionStartupCheck: an application's own customizer that sets "
+					+ "immediateExecution(true) on stdio still holds each tool call on the thread that reads stdin, "
+					+ "where the user's answer arrives, so the check keeps requiring immediateExecution(false) "
+					+ "there. Have it require that where a tool is marked elicit, which today the property "
+					+ "decides, and take out its requireImmediateExecution branch. In ImmediateExecutionCheck, take "
+					+ "out overStdio with describeStdioWorkerThreadServer, actOnStdioWorkerThreadServer and "
+					+ "GATOOL_STDIO_SERVER_CUSTOMIZER, keep requireWorkerThreadExecution and overStdioWhileAsking, "
+					+ "and take the property out of the sentences overStdioWhileAsking writes. In "
+					+ "gaToolMcpStatefulToolSpecifications, take out the asks rule, so stdio asks the way stateful "
+					+ "HTTP does, and with it the stdio call of McpStartupStops.stopWhereToolsElicitWithoutAChannel "
+					+ "and McpStartupStops.stdioElicitationFix. Take the property out of GAToolMcpProperties and take "
+					+ "McpStartupWarnings.warnOnStdioElicitation out. McpStartupStops."
+					+ "stopOnStdioElicitationInAWebApplication names the property as well: Spring AI's own "
+					+ "customizer still runs each call on the thread that reads stdin in a servlet application that "
+					+ "serves stdio, so keep that stop and drop the property from it. Have it fire where a tool is "
+					+ "marked elicit, which today the property alone decides, so a servlet application that serves "
+					+ "stdio without an elicit tool keeps starting. Have it honour "
+					+ "gatool.elicitation.ignore-where-unsupported the way stopWhereToolsElicitWithoutAChannel does "
+					+ "today: where that property is true, a servlet application that serves stdio with an elicit "
+					+ "tool keeps starting, startup warns once through "
+					+ "McpStartupWarnings.warnWhenElicitToolsRunWithoutAsking, and stdio counts there as a "
+					+ "transport that does not ask, so the tool runs without asking. The ignore property serves a "
+					+ "tool without asking wherever asking is impossible, and that application is one such place. "
+					+ "Take the property's row and its sentences out of "
+					+ "the README, add a CHANGELOG entry that says the property is gone, and take this test out.")
 			.isIn("2.0.0", "2.0.1");
 	}
 

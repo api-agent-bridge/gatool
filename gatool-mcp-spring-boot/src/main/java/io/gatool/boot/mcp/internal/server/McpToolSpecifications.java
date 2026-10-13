@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import io.micrometer.observation.Observation;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpStatelessServerFeatures;
+import io.modelcontextprotocol.server.McpSyncServerExchange;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -153,7 +154,7 @@ public final class McpToolSpecifications {
 	public static McpStatelessServerFeatures.SyncToolSpecification specification(GATool tool, JsonMapper jsonMapper,
 			McpCallSettings policy) {
 		return new McpStatelessServerFeatures.SyncToolSpecification(buildTool(tool, jsonMapper),
-				(context, request) -> observeCall(tool, copyArguments(request), policy));
+				(context, request) -> observeCall(tool, copyArguments(request), policy, null));
 	}
 
 	/**
@@ -174,16 +175,20 @@ public final class McpToolSpecifications {
 	public static McpServerFeatures.SyncToolSpecification statefulSpecification(GATool tool, JsonMapper jsonMapper,
 			McpCallSettings policy) {
 		return new McpServerFeatures.SyncToolSpecification(buildTool(tool, jsonMapper),
-				(exchange, request) -> observeCall(tool, copyArguments(request), policy));
+				(exchange, request) -> observeCall(tool, copyArguments(request), policy, exchange));
 	}
 
 	// Calls the tool inside one observation and returns the result of the call.
 	// GATool records one observation around the whole call, so the duration covers
-	// the rate limit check as well as the GraphQL request. An application without an
+	// the rate limit check as well as the GraphQL request. For a tool marked elicit it
+	// also spans the time the user takes to answer the confirmation, up to
+	// spring.ai.mcp.server.request-timeout. An application without an
 	// ObservationRegistry bean gets ObservationRegistry.NOOP, where every call below
 	// costs a few field reads.
+	// exchange: the stateful exchange of this call, or null on the stateless server and
+	// in a test that calls the handler directly.
 	private static McpSchema.CallToolResult observeCall(GATool tool, Map<String, @Nullable Object> arguments,
-			McpCallSettings policy) {
+			McpCallSettings policy, @Nullable McpSyncServerExchange exchange) {
 		Observation observation = Observation.createNotStarted(OBSERVATION_NAME, policy.observationRegistry())
 			.lowCardinalityKeyValue("gatool.call.name", tool.name())
 			.lowCardinalityKeyValue("gatool.operation.type", tool.readOnly() ? "query" : "mutation");
@@ -205,7 +210,7 @@ public final class McpToolSpecifications {
 			// HTTP call in two unrelated traces.
 			observation.observe(() -> {
 				began.set(true);
-				answer.set(guardCall(tool, arguments, policy, observation));
+				answer.set(guardCall(tool, arguments, policy, observation, exchange));
 			});
 		}
 		catch (Throwable failure) {
@@ -234,7 +239,7 @@ public final class McpToolSpecifications {
 		// let a metrics backend that is unreachable skip every tool call, where telemetry
 		// sits around a call and stays out of its answer. NOOP stands in for the failed
 		// observation, because its handlers are what just failed.
-		return guardCall(tool, arguments, policy, Observation.NOOP);
+		return guardCall(tool, arguments, policy, Observation.NOOP, exchange);
 	}
 
 	// What the log says about the call beside a failed observation.
@@ -257,8 +262,10 @@ public final class McpToolSpecifications {
 	// two. An InternalError or an UnknownError says the JVM itself is corrupted, and a
 	// server that keeps answering from a corrupted JVM answers wrongly, so it stops
 	// serving.
+	// exchange: the stateful exchange of this call, or null on the stateless server and
+	// in a test that calls the handler directly.
 	private static McpSchema.CallToolResult guardCall(GATool tool, Map<String, @Nullable Object> arguments,
-			McpCallSettings policy, Observation observation) {
+			McpCallSettings policy, Observation observation, @Nullable McpSyncServerExchange exchange) {
 		try {
 			// First, ahead of the scope check, the rate limiter and the tool. GATool
 			// reads the caller from the thread the call runs on, and a thread the
@@ -267,7 +274,7 @@ public final class McpToolSpecifications {
 			if (policy.requiresTheRequestThread() && !RequestThread.isBound()) {
 				return refuseOffTheRequestThread(tool, observation);
 			}
-			return callWithinScopesAndLimit(tool, arguments, policy, observation);
+			return callWithinScopesAndLimit(tool, arguments, policy, observation, exchange);
 		}
 		catch (Throwable failure) {
 			if (isFatal(failure)) {
@@ -355,8 +362,11 @@ public final class McpToolSpecifications {
 	// an agent in a loop learns how long to pause. The check runs ahead of the operation,
 	// so a refused call stops before the GraphQL API, and the call below sets the outcome
 	// tag for every other ending.
+	// exchange: the stateful exchange of this call, or null on the stateless server and
+	// in a test that calls the handler directly.
 	private static McpSchema.CallToolResult callWithinScopesAndLimit(GATool tool,
-			Map<String, @Nullable Object> arguments, McpCallSettings policy, Observation observation) {
+			Map<String, @Nullable Object> arguments, McpCallSettings policy, Observation observation,
+			@Nullable McpSyncServerExchange exchange) {
 		// Over stdio the caller is the process that started the server, and the scopes
 		// it holds come from the environment. The check that a 403 makes over HTTP is
 		// made here, ahead of the rate limit, and answers as a tool error.
@@ -382,6 +392,13 @@ public final class McpToolSpecifications {
 			String message = "Rate limit reached for " + tool.name() + ": " + decision.limit() + ". Retry after "
 					+ retryAfterSeconds + " seconds.";
 			return McpSchema.CallToolResult.builder().addTextContent(message).isError(true).build();
+		}
+		if (tool.elicit() != null && policy.elicitation().asks()) {
+			UserApproval.Verdict verdict = UserApproval.ask(tool, arguments, exchange, policy.elicitation());
+			if (verdict.decision() != UserApproval.Decision.ACCEPTED) {
+				observation.lowCardinalityKeyValue(OUTCOME_TAG, verdict.outcome());
+				return McpSchema.CallToolResult.builder().addTextContent(verdict.answer()).isError(true).build();
+			}
 		}
 		McpSchema.CallToolResult result = call(tool, arguments, observation,
 				policy.toolResponseMimeTypes().get(tool.name()));

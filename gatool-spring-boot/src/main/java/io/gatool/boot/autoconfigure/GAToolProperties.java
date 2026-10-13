@@ -66,6 +66,9 @@ public class GAToolProperties {
 	@NestedConfigurationProperty
 	private final GAToolDevProperties dev = new GAToolDevProperties();
 
+	@NestedConfigurationProperty
+	private final GAToolElicitationProperties elicitation = new GAToolElicitationProperties();
+
 	/**
 	 * Creates the properties with the default of each one. Spring Boot's binder then sets
 	 * the ones the environment carries.
@@ -136,6 +139,14 @@ public class GAToolProperties {
 	 */
 	public GAToolDevProperties getDev() {
 		return this.dev;
+	}
+
+	/**
+	 * Returns the group of properties under {@code gatool.elicitation}.
+	 * @return the group
+	 */
+	public GAToolElicitationProperties getElicitation() {
+		return this.elicitation;
 	}
 
 	/**

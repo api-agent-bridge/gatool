@@ -67,6 +67,8 @@ public final class CheckedTool {
 
 	private final List<String> scopes;
 
+	private final @Nullable String elicit;
+
 	private CheckedTool(ToolOperation operation) {
 		this.name = operation.toolName();
 		this.description = operation.description();
@@ -84,6 +86,7 @@ public final class CheckedTool {
 		this.openWorld = operation.openWorld();
 		List<String> declared = operation.scopes();
 		this.scopes = (declared != null) ? List.copyOf(declared) : List.of();
+		this.elicit = operation.elicit();
 	}
 
 	static CheckedTool of(ToolOperation operation) {
@@ -193,6 +196,15 @@ public final class CheckedTool {
 		return this.scopes;
 	}
 
+	/**
+	 * Returns the question the user reads before each call, which
+	 * {@code @gatool(elicit:)} sets, or {@code null} for a tool that runs without asking.
+	 * @return the question, or {@code null}
+	 */
+	public @Nullable String elicit() {
+		return this.elicit;
+	}
+
 	@Override
 	public boolean equals(@Nullable Object other) {
 		if (this == other) {
@@ -203,14 +215,15 @@ public final class CheckedTool {
 				&& this.location.equals(that.location) && this.exposureTypeLabels.equals(that.exposureTypeLabels)
 				&& this.document.equals(that.document) && this.sharedFragmentFiles.equals(that.sharedFragmentFiles)
 				&& Objects.equals(this.title, that.title) && Objects.equals(this.outputSchema, that.outputSchema)
-				&& Objects.equals(this.openWorld, that.openWorld) && this.scopes.equals(that.scopes);
+				&& Objects.equals(this.openWorld, that.openWorld) && this.scopes.equals(that.scopes)
+				&& Objects.equals(this.elicit, that.elicit);
 	}
 
 	@Override
 	public int hashCode() {
 		return Objects.hash(this.name, this.description, this.inputSchema, this.location, this.exposureTypeLabels,
 				this.document, this.sharedFragmentFiles, this.title, this.outputSchema, this.readOnly, this.openWorld,
-				this.scopes);
+				this.scopes, this.elicit);
 	}
 
 	@Override

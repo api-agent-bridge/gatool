@@ -201,9 +201,9 @@ class OperationFileCheckTests {
 	@Test
 	void check_toolThatPublishesAnOutputSchema_shouldReportTheSchemaTitleHintsAndScopes(@TempDir Path directory)
 			throws Exception {
-		// The five accessors this asserts are the fields the tool contract snapshot
-		// already records, so the check has to report the same ones the running
-		// application would publish.
+		// The accessors asserted beside elicit are the fields the tool contract snapshot
+		// records, so the check has to report the same ones the running application
+		// would publish. The snapshot leaves elicit out because only the server reads it.
 		Path schema = schemaFile(directory);
 		Path mcp = folderWith(directory, "mcp", "TopRatedMovies.graphql",
 				"""
@@ -222,6 +222,7 @@ class OperationFileCheckTests {
 			assertThat(tool.outputSchema()).contains("\"topRatedMovies\"");
 			assertThat(tool.readOnly()).isTrue();
 			assertThat(tool.openWorld()).isNull();
+			assertThat(tool.elicit()).isNull();
 			assertThat(tool.scopes()).containsExactly("movies:read");
 		});
 	}
@@ -244,6 +245,45 @@ class OperationFileCheckTests {
 			assertThat(tool.readOnly()).isFalse();
 			assertThat(tool.openWorld()).isTrue();
 		});
+	}
+
+	@Test
+	void check_mutationWithAnElicitQuestion_shouldReportIt(@TempDir Path directory) throws Exception {
+		Path schema = schemaFile(directory);
+		Path mcp = folderWith(directory, "mcp", "AddReview.graphql", """
+				# Adds a review to a movie.
+				mutation AddReview($movieId: ID!, $score: Int!) @gatool(elicit: "Add this review?") {
+				  addReview(input: { movieId: $movieId, score: $score }) { review { id } }
+				}
+				""");
+
+		CheckResult result = OperationFileCheck.check(schema, List.of(mcp), List.of(), CheckSettings.defaults());
+
+		assertThat(result.passes()).isTrue();
+		assertThat(result.tools()).singleElement()
+			.satisfies((tool) -> assertThat(tool.elicit()).isEqualTo("Add this review?"));
+	}
+
+	@Test
+	void check_fileRewrittenWithAnotherElicitQuestion_shouldGiveAnUnequalToolWithAnotherHashCode(
+			@TempDir Path directory) throws Exception {
+		// The same file is checked twice, then rewritten and checked again, so the
+		// location and the printed document, which leaves the directive out, stay
+		// identical and the question is the one value that differs. The first two runs
+		// give the equal pair.
+		Path schema = schemaFile(directory);
+		Path mcp = folderWith(directory, "mcp", "TopRatedMovies.graphql", topRatedMoviesAsking("Read the movies?"));
+		CheckedTool asking = onlyTool(schema, mcp);
+		CheckedTool askingAgain = onlyTool(schema, mcp);
+		Files.writeString(mcp.resolve("TopRatedMovies.graphql"), topRatedMoviesAsking("Read the top movies?"));
+		CheckedTool askingAnother = onlyTool(schema, mcp);
+
+		assertThat(askingAnother.location()).isEqualTo(asking.location());
+		assertThat(askingAnother.document()).isEqualTo(asking.document());
+		assertThat(askingAnother.elicit()).isEqualTo("Read the top movies?").isNotEqualTo(asking.elicit());
+		assertThat(askingAnother).isNotEqualTo(asking);
+		assertThat(askingAnother.hashCode()).isNotEqualTo(asking.hashCode());
+		assertThat(askingAgain).isEqualTo(asking).hasSameHashCodeAs(asking);
 	}
 
 	@Test
@@ -553,6 +593,21 @@ class OperationFileCheckTests {
 		catch (UnsupportedOperationException | IOException ex) {
 			Assumptions.abort("symbolic links are unavailable here: " + ex);
 		}
+	}
+
+	private static String topRatedMoviesAsking(String question) {
+		return """
+				# Returns the highest-rated movies, best first.
+				query TopRatedMovies($first: Int = 10) @gatool(elicit: "%s") {
+				  topRatedMovies(first: $first) { id title }
+				}
+				""".formatted(question);
+	}
+
+	private static CheckedTool onlyTool(Path schema, Path folder) {
+		CheckResult result = OperationFileCheck.check(schema, List.of(folder), List.of(), CheckSettings.defaults());
+		assertThat(result.passes()).isTrue();
+		return result.tools().get(0);
 	}
 
 	private static Path schemaFile(Path directory) throws Exception {
