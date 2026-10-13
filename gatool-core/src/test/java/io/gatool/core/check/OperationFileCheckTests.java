@@ -265,11 +265,12 @@ class OperationFileCheckTests {
 	}
 
 	@Test
-	void check_filesDifferingOnlyInTheElicitQuestion_shouldGiveUnequalToolsWithDifferentHashCodes(
+	void check_fileRewrittenWithAnotherElicitQuestion_shouldGiveAnUnequalToolWithAnotherHashCode(
 			@TempDir Path directory) throws Exception {
-		// The same file is checked twice and rewritten between the runs, so the location
-		// and the printed document, which leaves the directive out, stay identical and
-		// the question is the one value that differs.
+		// The same file is checked twice, then rewritten and checked again, so the
+		// location and the printed document, which leaves the directive out, stay
+		// identical and the question is the one value that differs. The first two runs
+		// give the equal pair.
 		Path schema = schemaFile(directory);
 		Path mcp = folderWith(directory, "mcp", "TopRatedMovies.graphql", topRatedMoviesAsking("Read the movies?"));
 		CheckedTool asking = onlyTool(schema, mcp);

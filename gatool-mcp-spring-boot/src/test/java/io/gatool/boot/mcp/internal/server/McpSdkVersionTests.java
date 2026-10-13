@@ -73,7 +73,14 @@ class McpSdkVersionTests {
 					+ "customizer still runs each call on the thread that reads stdin in a servlet application that "
 					+ "serves stdio, so keep that stop and drop the property from it. Have it fire where a tool is "
 					+ "marked elicit, which today the property alone decides, so a servlet application that serves "
-					+ "stdio without an elicit tool keeps starting. Take the property's row and its sentences out of "
+					+ "stdio without an elicit tool keeps starting. Have it honour "
+					+ "gatool.elicitation.ignore-where-unsupported the way stopWhereToolsElicitWithoutAChannel does "
+					+ "today: where that property is true, a servlet application that serves stdio with an elicit "
+					+ "tool keeps starting, startup warns once through "
+					+ "McpStartupWarnings.warnWhenElicitToolsRunWithoutAsking, and stdio counts there as a "
+					+ "transport that does not ask, so the tool runs without asking. The ignore property serves a "
+					+ "tool without asking wherever asking is impossible, and that application is one such place. "
+					+ "Take the property's row and its sentences out of "
 					+ "the README, add a CHANGELOG entry that says the property is gone, and take this test out.")
 			.isIn("2.0.0", "2.0.1");
 	}

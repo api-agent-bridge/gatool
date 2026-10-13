@@ -393,11 +393,13 @@ public final class ToolDirective {
 	// problem where the file wrote anything else. The value is null where the directive
 	// leaves the argument out.
 	//
-	// A blank string is refused as well: a blank title would reach the tool definition as
-	// an empty string, which a client shows in place of the name. Blank means without a
-	// character a reader can see, which is wider than String.isBlank(), because a title
-	// of no-break spaces passes that one and renders empty. VisibleText holds the rule,
-	// which the description of a tool takes as well.
+	// A blank string is refused as well. A blank title would reach the tool definition
+	// as an empty string, which a client shows in place of the name, and a blank elicit
+	// question would reach the user as an empty line above the arguments, where the
+	// user expects to read what the call asks. Blank means without a character a reader
+	// can see, which is wider than String.isBlank(), because a value of no-break spaces
+	// passes that one and renders empty. VisibleText holds the rule, which the
+	// description of a tool takes as well.
 	private static @Nullable String readStringArgument(Directive directive, String argumentName, String location,
 			OperationDiagnostics diagnostics) {
 		Argument argument = directive.getArgument(argumentName);

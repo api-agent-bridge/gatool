@@ -62,10 +62,11 @@ final class UserApproval {
 
 	private static final String TOOL_PLACEHOLDER = "{tool}";
 
-	// The pattern runs over the arguments as JSON text, where a tab, a line feed or a
-	// carriage return between the scheme and the token is written as the two characters
-	// \t, \n or \r, so those escapes separate the two as well as whitespace and %20 do.
-	private static final Pattern BEARER_TOKEN = Pattern.compile("(?i)bearer(?:\\s|%20|\\\\[tnr])++[a-z0-9._~+/=%-]+");
+	// The pattern runs over the arguments as JSON text, where a tab, a line feed, a
+	// carriage return, a form feed or a backspace between the scheme and the token is
+	// written as the two characters \t, \n, \r, \f or \b, so those escapes separate the
+	// two as well as whitespace and %20 do.
+	private static final Pattern BEARER_TOKEN = Pattern.compile("(?i)bearer(?:\\s|%20|\\\\[tnrfb])++[a-z0-9._~+/=%-]+");
 
 	private static final JsonMapper WRITER = JsonMapper.builder().build();
 

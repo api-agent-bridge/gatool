@@ -59,6 +59,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(OutputCaptureExtension.class)
 class McpElicitSettingsOverHttpTests {
 
+	private static final String UNKNOWN_ID = "Unexpected response for unknown id";
+
 	@LocalServerPort
 	private int port;
 
@@ -92,17 +94,17 @@ class McpElicitSettingsOverHttpTests {
 			assertThat(text(result)).isEqualTo("The user did not answer the confirmation for topRatedMovies within "
 					+ "1 second (spring.ai.mcp.server.request-timeout), so the API was not called.");
 			// The client stays open until the handler returns the late accept, and the
-			// SDK then posts it to the server. The API count is read for two seconds
-			// after that, while the server receives the answer.
+			// SDK then posts it to the server. MCP Java SDK 2.0.0 logs the unknown-id
+			// line at ERROR for an answer to a request that already ended, so the output
+			// is read until that line shows that the late accept reached the server, and
+			// the API count is read after that.
 			assertThat(answering.await(10, TimeUnit.SECONDS)).as("the handler reached its late accept").isTrue();
-			long deadline = System.nanoTime() + Duration.ofSeconds(2).toNanos();
-			while (System.nanoTime() < deadline) {
-				assertThat(MoviesApiServer.graphQlCalls()).isEqualTo(before);
-				Thread.sleep(100);
+			long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();
+			while (!output.toString().contains(UNKNOWN_ID) && System.nanoTime() < deadline) {
+				Thread.sleep(50);
 			}
-			// MCP Java SDK 2.0.0 logs this line at ERROR for an answer to a request that
-			// already ended, which shows that the late accept reached the server.
-			assertThat(output).contains("Unexpected response for unknown id");
+			assertThat(output).contains(UNKNOWN_ID);
+			assertThat(MoviesApiServer.graphQlCalls()).isEqualTo(before);
 		}
 		assertThat(MoviesApiServer.graphQlCalls()).isEqualTo(before);
 	}

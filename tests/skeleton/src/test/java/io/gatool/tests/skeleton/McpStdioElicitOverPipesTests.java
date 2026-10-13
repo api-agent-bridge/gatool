@@ -73,7 +73,8 @@ class McpStdioElicitOverPipesTests {
 				.callTool(McpSchema.CallToolRequest.builder("topRatedMovies").arguments(Map.of("first", 1)).build());
 
 			assertThat(result.isError()).isTrue();
-			assertThat(text(result)).contains("The user declined the call to topRatedMovies");
+			assertThat(text(result)).isEqualTo("The user declined the call to topRatedMovies, so the API was not "
+					+ "called. Ask the user what to do next.");
 		}
 		assertThat(MoviesApiServer.graphQlCalls()).isEqualTo(before);
 	}

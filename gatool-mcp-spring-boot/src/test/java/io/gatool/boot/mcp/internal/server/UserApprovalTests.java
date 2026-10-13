@@ -185,7 +185,7 @@ class UserApprovalTests {
 	}
 
 	@Test
-	void ask_answerThatTimesOutUnderOneSecond_shouldNameTheTimeoutInTheSingular() {
+	void ask_answerThatTimesOutAfterOneSecond_shouldNameTheTimeoutInTheSingular() {
 		FakeLoggableSession session = new FakeLoggableSession(() -> Mono.error(new TimeoutException("1000ms")));
 		ElicitationSettings oneSecond = new ElicitationSettings(true, "No.", "Later.", Duration.ofSeconds(1));
 
@@ -305,6 +305,14 @@ class UserApprovalTests {
 	@Test
 	void message_bearerTokenAfterALineFeed_shouldRedactItAsJsonWritesTheLineFeed() {
 		String message = UserApproval.message("Read?", Map.of("note", "Bearer\nabc.def-ghi please"));
+
+		assertThat(message).isEqualTo("Read?\n\n{\"note\":\"Bearer [redacted] please\"}");
+	}
+
+	@Test
+	void message_bearerTokenAfterAFormFeed_shouldRedactItAsJsonWritesTheFormFeed() {
+		// Jackson writes the form feed as the two characters \f.
+		String message = UserApproval.message("Read?", Map.of("note", "Bearer\fabc.def-ghi please"));
 
 		assertThat(message).isEqualTo("Read?\n\n{\"note\":\"Bearer [redacted] please\"}");
 	}
