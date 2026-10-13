@@ -299,9 +299,14 @@ class McpElicitStartupTests {
 		this.servletStdioServer.withPropertyValues("gatool.mcp.stdio.elicitation=true").run((context) -> {
 			assertThat(context).hasFailed();
 			assertThat(context.getStartupFailure()).rootCause()
-				.isInstanceOf(InvalidConfigurationPropertyValueException.class)
-				.hasMessageContaining("gatool.mcp.stdio.elicitation")
-				.hasMessageContaining("servlet application");
+				.isInstanceOfSatisfying(InvalidConfigurationPropertyValueException.class, (stop) -> {
+					assertThat(stop.getName()).isEqualTo("gatool.mcp.stdio.elicitation");
+					assertThat(stop.getReason()).isEqualTo("Spring AI's own customizer runs each tool call on the "
+							+ "thread that reads stdin in a servlet application, so a tool that asks the user would "
+							+ "wait for an answer that thread cannot read. Serve stdio from an application without a "
+							+ "web server, which GATool sets up with spring.main.web-application-type=none, or "
+							+ "leave this property off.");
+				});
 		});
 	}
 

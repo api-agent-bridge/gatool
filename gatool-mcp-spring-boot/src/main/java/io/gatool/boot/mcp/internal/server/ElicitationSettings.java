@@ -18,8 +18,6 @@ package io.gatool.boot.mcp.internal.server;
 
 import java.time.Duration;
 
-import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerProperties;
-
 /**
  * What the approval step needs: whether this transport asks at all, the two sentences the
  * model reads after a decline and a cancel, and the request timeout Spring AI gave the
@@ -36,11 +34,13 @@ public record ElicitationSettings(boolean asks, String declinedAnswer, String ca
 		Duration requestTimeout) {
 
 	/**
-	 * The request timeout Spring AI applies while spring.ai.mcp.server.request-timeout is
-	 * unset, read from Spring AI's own properties class so that a change of its default
-	 * reaches GATool with the upgrade.
+	 * The request timeout of a transport that cannot ask: Spring AI's default of 20
+	 * seconds for spring.ai.mcp.server.request-timeout. A plain constant keeps this
+	 * package free of the Spring AI auto-configure jar, which an application may leave
+	 * off its classpath. McpCallPolicies reads the default from Spring AI itself, and its
+	 * tests compare the two.
 	 */
-	public static final Duration DEFAULT_REQUEST_TIMEOUT = new McpServerProperties().getRequestTimeout();
+	public static final Duration DEFAULT_REQUEST_TIMEOUT = Duration.ofSeconds(20);
 
 	static final String DEFAULT_DECLINED_ANSWER = "The user declined the call to {tool}, so the API was not called. "
 			+ "Ask the user what to do next.";

@@ -26,6 +26,7 @@ import java.util.Set;
 
 import io.micrometer.observation.ObservationRegistry;
 import org.jspecify.annotations.Nullable;
+import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerProperties;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.context.properties.bind.Bindable;
@@ -114,14 +115,17 @@ final class McpCallPolicies {
 	}
 
 	// The value Spring AI applies, and Spring AI's own default while the property is
-	// unset. The Binder reads the duration formats Spring AI's own binding reads, such as
-	// 5s and 5m, in any context. Environment.getProperty converts a string to a Duration
-	// only where Boot's conversion service is installed, which a plain application
-	// context lacks.
+	// unset, read from its McpServerProperties so that a change of that default reaches
+	// GATool with the upgrade. The read lives in this package, which loads only where the
+	// Spring AI auto-configure jar is present, so the classes of internal.server load
+	// without it. The Binder reads the duration formats Spring AI's own binding reads,
+	// such as 5s and 5m, in any context. Environment.getProperty converts a string to a
+	// Duration only where Boot's conversion service is installed, which a plain
+	// application context lacks.
 	static Duration requestTimeout(Environment environment) {
 		return Binder.get(environment)
 			.bind("spring.ai.mcp.server.request-timeout", Duration.class)
-			.orElse(ElicitationSettings.DEFAULT_REQUEST_TIMEOUT);
+			.orElseGet(() -> new McpServerProperties().getRequestTimeout());
 	}
 
 	/**

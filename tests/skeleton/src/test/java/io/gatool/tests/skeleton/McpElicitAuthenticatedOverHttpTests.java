@@ -45,9 +45,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  * baseline scope alone. The other elicitation tests run with authentication off, so this
  * test is the one that sends the answer through the chain. The client carries a token
  * with the baseline scope on every request, the answer included, and an accept that the
- * chain let through runs the operation once. A refused answer leaves the server waiting
- * until the request timeout, set here to 5 seconds, below the client's 20 seconds, so the
- * call ends as the timeout sentence with the API uncalled.
+ * chain let through runs the operation once. The request timeout is set to 5 seconds so
+ * that a refused answer would fail this test after 5 seconds, the call reading the
+ * timeout sentence, well under the client's 20 seconds.
  */
 @SpringBootTest(classes = McpElicitAuthenticatedOverHttpTests.ElicitApplication.class,
 		webEnvironment = WebEnvironment.RANDOM_PORT,

@@ -50,11 +50,10 @@ class ElicitationSettingsTests {
 		assertThat(ElicitationSettings.inWords(Duration.ofMinutes(5))).isEqualTo("300 seconds");
 	}
 
-	// The constant is read from Spring AI's McpServerProperties, so this test fails on
-	// the Spring AI release that changes the default, where the README's "20 seconds by
-	// default" needs to follow.
+	// The constant is plain so that this package loads without the Spring AI
+	// auto-configure jar. McpCallPoliciesTests compares it with Spring AI's own default.
 	@Test
-	void defaultRequestTimeout_shouldBeSpringAisTwentySeconds() {
+	void defaultRequestTimeout_shouldBeTwentySeconds() {
 		assertThat(ElicitationSettings.DEFAULT_REQUEST_TIMEOUT).isEqualTo(Duration.ofSeconds(20));
 		assertThat(ElicitationSettings.off().requestTimeout()).isEqualTo(Duration.ofSeconds(20));
 	}

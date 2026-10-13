@@ -19,17 +19,26 @@ package io.gatool.boot.mcp.autoconfigure;
 import java.time.Duration;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerProperties;
 import org.springframework.mock.env.MockEnvironment;
+
+import io.gatool.boot.mcp.internal.server.ElicitationSettings;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class McpCallPoliciesTests {
 
-	// The default comes from Spring AI's McpServerProperties, which holds 20 seconds in
-	// Spring AI 2.0.1.
+	// The fallback comes from Spring AI's McpServerProperties, which holds 20 seconds in
+	// Spring AI 2.0.1. ElicitationSettings holds the same 20 seconds as a plain constant
+	// for a transport that cannot ask, so this test fails on the Spring AI release that
+	// changes the default, where that constant and the README's "20 seconds by default"
+	// need to follow.
 	@Test
 	void requestTimeout_unset_shouldBeSpringAisDefaultOfTwentySeconds() {
-		assertThat(McpCallPolicies.requestTimeout(new MockEnvironment())).isEqualTo(Duration.ofSeconds(20));
+		Duration fallback = McpCallPolicies.requestTimeout(new MockEnvironment());
+
+		assertThat(fallback).isEqualTo(new McpServerProperties().getRequestTimeout());
+		assertThat(fallback).isEqualTo(ElicitationSettings.DEFAULT_REQUEST_TIMEOUT).isEqualTo(Duration.ofSeconds(20));
 	}
 
 	@Test
