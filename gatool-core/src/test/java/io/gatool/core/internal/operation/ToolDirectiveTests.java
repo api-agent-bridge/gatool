@@ -157,8 +157,9 @@ class ToolDirectiveTests {
 
 		assertThat(catalog.tools()).isEmpty();
 		assertThat(catalog.problems()).singleElement()
-			.satisfies(
-					(problem) -> assertThat(problem.message()).startsWith("sets @gatool(elicit:) to a blank string"));
+			.satisfies((problem) -> assertThat(problem.message())
+				.startsWith("sets @gatool(elicit:) to a blank string, holding U+00A0, and the argument takes text "
+						+ "that is shown as written"));
 	}
 
 	@Test
@@ -473,7 +474,7 @@ class ToolDirectiveTests {
 		assertThat(catalog.tools()).isEmpty();
 		assertThat(catalog.problems()).singleElement()
 			.satisfies((problem) -> assertThat(problem.message()).startsWith("sets @gatool(title:) to a blank string")
-				.contains("the argument takes text a client reads")
+				.contains("the argument takes text that is shown as written")
 				.endsWith("(line 2, column 30)"));
 	}
 
@@ -493,7 +494,7 @@ class ToolDirectiveTests {
 		assertThat(catalog.problems()).singleElement()
 			.satisfies((problem) -> assertThat(problem.message())
 				.startsWith("sets @gatool(title:) to a blank string, holding U+00A0 and U+200B, and the "
-						+ "argument takes text a client reads"));
+						+ "argument takes text that is shown as written"));
 	}
 
 	@Test
@@ -533,7 +534,7 @@ class ToolDirectiveTests {
 		assertThat(catalog.problems()).singleElement()
 			.satisfies((problem) -> assertThat(problem.message())
 				.startsWith("sets @gatool(title:) to a blank string, holding U+" + codePoint
-						+ ", and the argument takes text a client reads")
+						+ ", and the argument takes text that is shown as written")
 				.endsWith("(line 2, column 30)"));
 	}
 
@@ -552,7 +553,7 @@ class ToolDirectiveTests {
 		assertThat(catalog.problems()).singleElement()
 			.satisfies((problem) -> assertThat(problem.message())
 				.startsWith("sets @gatool(title:) to a blank string, holding U+00A0 and U+3164 and U+200B and "
-						+ "U+2800, and the argument takes text a client reads"));
+						+ "U+2800, and the argument takes text that is shown as written"));
 	}
 
 	@Test

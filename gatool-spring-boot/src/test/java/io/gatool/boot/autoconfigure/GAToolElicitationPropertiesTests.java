@@ -16,14 +16,18 @@
 
 package io.gatool.boot.autoconfigure;
 
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class GAToolElicitationPropertiesTests {
 
 	@Test
-	void defaults_shouldAskOnEveryTransportThatCanAndReadTheTwoSentences() {
+	void defaults_shouldHoldTheTwoSentencesAndLeaveTheIgnoreFlagAndTheStdioFlagOff() {
 		GAToolProperties properties = new GAToolProperties();
 
 		GAToolElicitationProperties elicitation = properties.getElicitation();
@@ -34,6 +38,24 @@ class GAToolElicitationPropertiesTests {
 		assertThat(elicitation.getCancelledAnswer()).isEqualTo("The user dismissed the confirmation for {tool} without "
 				+ "answering, so the API was not called. Ask the user whether to try again.");
 		assertThat(properties.getMcp().getStdio().isElicitation()).isFalse();
+	}
+
+	@Test
+	void bind_thePropertiesOfTheGroupAndTheStdioFlag_shouldReachTheGetters() {
+		// Spring Boot's binder reads the kebab-case names the README documents, so the
+		// four properties are written the way an application.properties file spells them.
+		MapConfigurationPropertySource source = new MapConfigurationPropertySource(
+				Map.of("gatool.elicitation.declined-answer", "{tool} was declined by the user.",
+						"gatool.elicitation.cancelled-answer", "The user closed the dialog for {tool}.",
+						"gatool.elicitation.ignore-where-unsupported", "true", "gatool.mcp.stdio.elicitation", "true"));
+
+		GAToolProperties properties = new Binder(source).bind("gatool", GAToolProperties.class).get();
+
+		GAToolElicitationProperties elicitation = properties.getElicitation();
+		assertThat(elicitation.getDeclinedAnswer()).isEqualTo("{tool} was declined by the user.");
+		assertThat(elicitation.getCancelledAnswer()).isEqualTo("The user closed the dialog for {tool}.");
+		assertThat(elicitation.isIgnoreWhereUnsupported()).isTrue();
+		assertThat(properties.getMcp().getStdio().isElicitation()).isTrue();
 	}
 
 }

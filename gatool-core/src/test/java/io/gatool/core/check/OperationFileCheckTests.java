@@ -201,9 +201,9 @@ class OperationFileCheckTests {
 	@Test
 	void check_toolThatPublishesAnOutputSchema_shouldReportTheSchemaTitleHintsAndScopes(@TempDir Path directory)
 			throws Exception {
-		// Five of the six accessors this asserts are the fields the tool contract
-		// snapshot already records, so the check has to report the same ones the
-		// running application would publish.
+		// The accessors asserted beside elicit are the fields the tool contract snapshot
+		// records, so the check has to report the same ones the running application
+		// would publish. The snapshot leaves elicit out because only the server reads it.
 		Path schema = schemaFile(directory);
 		Path mcp = folderWith(directory, "mcp", "TopRatedMovies.graphql",
 				"""
@@ -262,6 +262,27 @@ class OperationFileCheckTests {
 		assertThat(result.passes()).isTrue();
 		assertThat(result.tools()).singleElement()
 			.satisfies((tool) -> assertThat(tool.elicit()).isEqualTo("Add this review?"));
+	}
+
+	@Test
+	void check_filesDifferingOnlyInTheElicitQuestion_shouldGiveUnequalToolsWithDifferentHashCodes(
+			@TempDir Path directory) throws Exception {
+		// The same file is checked twice and rewritten between the runs, so the location
+		// and the printed document, which leaves the directive out, stay identical and
+		// the question is the one value that differs.
+		Path schema = schemaFile(directory);
+		Path mcp = folderWith(directory, "mcp", "TopRatedMovies.graphql", topRatedMoviesAsking("Read the movies?"));
+		CheckedTool asking = onlyTool(schema, mcp);
+		CheckedTool askingAgain = onlyTool(schema, mcp);
+		Files.writeString(mcp.resolve("TopRatedMovies.graphql"), topRatedMoviesAsking("Read the top movies?"));
+		CheckedTool askingAnother = onlyTool(schema, mcp);
+
+		assertThat(askingAnother.location()).isEqualTo(asking.location());
+		assertThat(askingAnother.document()).isEqualTo(asking.document());
+		assertThat(askingAnother.elicit()).isEqualTo("Read the top movies?").isNotEqualTo(asking.elicit());
+		assertThat(askingAnother).isNotEqualTo(asking);
+		assertThat(askingAnother.hashCode()).isNotEqualTo(asking.hashCode());
+		assertThat(askingAgain).isEqualTo(asking).hasSameHashCodeAs(asking);
 	}
 
 	@Test
@@ -571,6 +592,21 @@ class OperationFileCheckTests {
 		catch (UnsupportedOperationException | IOException ex) {
 			Assumptions.abort("symbolic links are unavailable here: " + ex);
 		}
+	}
+
+	private static String topRatedMoviesAsking(String question) {
+		return """
+				# Returns the highest-rated movies, best first.
+				query TopRatedMovies($first: Int = 10) @gatool(elicit: "%s") {
+				  topRatedMovies(first: $first) { id title }
+				}
+				""".formatted(question);
+	}
+
+	private static CheckedTool onlyTool(Path schema, Path folder) {
+		CheckResult result = OperationFileCheck.check(schema, List.of(folder), List.of(), CheckSettings.defaults());
+		assertThat(result.passes()).isTrue();
+		return result.tools().get(0);
 	}
 
 	private static Path schemaFile(Path directory) throws Exception {

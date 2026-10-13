@@ -410,7 +410,7 @@ public final class ToolDirective {
 			if (text == null || VisibleText.rendersEmpty(text)) {
 				diagnostics.problem(location,
 						describeArgument(argumentName) + " to a blank string" + describeInvisibleCharacters(text)
-								+ ", and the argument takes text a client reads; "
+								+ ", and the argument takes text that is shown as written; "
 								+ "write it, or leave the argument out" + at(argument));
 				return null;
 			}
