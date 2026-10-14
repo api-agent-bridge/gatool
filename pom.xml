@@ -83,7 +83,7 @@
         <!-- The Checkstyle and spring-javaformat versions Spring Boot's own build uses. -->
         <checkstyle.version>10.12.4</checkstyle.version>
         <spring-javaformat.version>0.0.48</spring-javaformat.version>
-        <nullaway.version>0.14.1</nullaway.version>
+        <nullaway.version>0.14.2</nullaway.version>
         <graphql-java-extended-scalars.version>24.0</graphql-java-extended-scalars.version>
         <bucket4j.version>8.19.0</bucket4j.version>
         <lucene.version>10.5.1</lucene.version>
