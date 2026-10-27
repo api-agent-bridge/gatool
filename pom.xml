@@ -78,7 +78,7 @@
              all three in 11.0.25. Spring Boot publishes this property so that a build
              can move inside a patch line before the next Boot release lands, so this
              override goes away once a Boot release manages 11.0.25 or later. -->
-        <tomcat.version>11.0.26</tomcat.version>
+        <tomcat.version>11.0.27</tomcat.version>
         <error-prone.version>2.50.0</error-prone.version>
         <!-- The Checkstyle and spring-javaformat versions Spring Boot's own build uses. -->
         <checkstyle.version>10.12.4</checkstyle.version>
